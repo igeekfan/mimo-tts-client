@@ -171,8 +171,14 @@ jobs:
           APP_NAME="mimo-tts-client"
           mv build/linux/${APP_NAME}_${{ steps.normalise_version.outputs.version }}_amd64.deb \
              build/linux/${APP_NAME}_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.deb
-          mv ${APP_NAME}-${{ steps.normalise_platform_arch.outputs.arch }}.AppImage \
-             ${APP_NAME}_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.AppImage
+          # AppImage name varies by desktop file Name field; find it by glob
+          APPIMAGE_FILE=$(ls -1 *.AppImage 2>/dev/null | head -1)
+          if [ -n "$APPIMAGE_FILE" ]; then
+            mv "$APPIMAGE_FILE" \
+               ${APP_NAME}_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.AppImage
+          else
+            echo "Warning: no AppImage file found to rename" >&2
+          fi
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
