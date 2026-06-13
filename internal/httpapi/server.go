@@ -32,6 +32,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/synthesize", s.handleSynthesize)
 	s.mux.HandleFunc("/api/synthesize-stream", s.handleSynthesizeStream)
 	s.mux.HandleFunc("/api/about", s.handleAbout)
+	s.mux.HandleFunc("/api/version", s.handleVersion)
+	s.mux.HandleFunc("/api/update", s.handleUpdate)
 	s.mux.HandleFunc("/api/history", s.handleHistory)
 	s.mux.HandleFunc("/api/history/search", s.handleHistorySearch)
 	s.mux.HandleFunc("/api/history/audio", s.handleHistoryAudio)
@@ -111,10 +113,20 @@ func (s *Server) handleSynthesize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAbout(w http.ResponseWriter, r *http.Request) {
-	about := map[string]string{
-		"appVersion": s.service.GetCurrentVersion(),
+	json.NewEncoder(w).Encode(s.service.GetAboutInfo())
+}
+
+func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]string{"version": s.service.GetCurrentVersion()})
+}
+
+func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
+	info, err := s.service.CheckForUpdate()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
 	}
-	json.NewEncoder(w).Encode(about)
+	json.NewEncoder(w).Encode(info)
 }
 
 func (s *Server) handleSynthesizeStream(w http.ResponseWriter, r *http.Request) {

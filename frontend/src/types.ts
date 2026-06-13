@@ -38,7 +38,19 @@ export interface Settings {
 export interface AboutInfo {
   appVersion: string
   systemVersion: string
+  githubRepo: string
+  githubUrl: string
   authorEmail: string
+}
+
+export interface UpdateInfo {
+  hasUpdate: boolean
+  currentVersion: string
+  latestVersion: string
+  releaseName: string
+  releaseBody: string
+  htmlUrl: string
+  publishedAt: string
 }
 
 export interface SynthesisTask {

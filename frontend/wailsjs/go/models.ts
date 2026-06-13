@@ -3,6 +3,8 @@ export namespace desktop {
 	export class AboutInfo {
 	    appVersion: string;
 	    systemVersion: string;
+	    githubRepo: string;
+	    githubUrl: string;
 	    authorEmail: string;
 	
 	    static createFrom(source: any = {}) {
@@ -13,6 +15,8 @@ export namespace desktop {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.appVersion = source["appVersion"];
 	        this.systemVersion = source["systemVersion"];
+	        this.githubRepo = source["githubRepo"];
+	        this.githubUrl = source["githubUrl"];
 	        this.authorEmail = source["authorEmail"];
 	    }
 	}
@@ -198,6 +202,30 @@ export namespace desktop {
 	        this.audioData = source["audioData"];
 	        this.format = source["format"];
 	        this.error = source["error"];
+	    }
+	}
+	export class UpdateInfo {
+	    hasUpdate: boolean;
+	    currentVersion: string;
+	    latestVersion: string;
+	    releaseName: string;
+	    releaseBody: string;
+	    htmlUrl: string;
+	    publishedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hasUpdate = source["hasUpdate"];
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.releaseName = source["releaseName"];
+	        this.releaseBody = source["releaseBody"];
+	        this.htmlUrl = source["htmlUrl"];
+	        this.publishedAt = source["publishedAt"];
 	    }
 	}
 

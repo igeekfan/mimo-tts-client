@@ -55,6 +55,21 @@ func (a *App) OpenFolder(path string) error {
 	return cmd.Start()
 }
 
+const releasePageURL = "https://github.com/igeekfan/TTS/releases"
+
+func (a *App) OpenReleasePage() error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", releasePageURL)
+	case "darwin":
+		cmd = exec.Command("open", releasePageURL)
+	default:
+		cmd = exec.Command("xdg-open", releasePageURL)
+	}
+	return cmd.Start()
+}
+
 func (a *App) OpenFile(path string) error {
 	path = filepath.Clean(path)
 	var cmd *exec.Cmd

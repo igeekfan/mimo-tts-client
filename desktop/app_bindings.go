@@ -1,9 +1,9 @@
 package desktop
 
 import (
-	"mimo-tts-client/internal/core"
 	"encoding/base64"
 	"fmt"
+	"mimo-tts-client/internal/core"
 	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -34,14 +34,22 @@ func (a *App) GetSettings() Settings         { return fromCoreSettings(a.service
 func (a *App) SaveSettings(s Settings) error { return a.service.SaveSettings(toCoreSettings(s)) }
 func (a *App) SetLang(lang string)           { a.service.SetLang(lang) }
 func (a *App) GetLang() string               { return a.service.GetLang() }
+func fromCoreAboutInfo(in core.AboutInfo) AboutInfo {
+	return AboutInfo(in)
+}
+
+func fromCoreUpdateInfo(in core.UpdateInfo) UpdateInfo {
+	return UpdateInfo(in)
+}
+
 func (a *App) GetAboutInfo() AboutInfo {
-	return AboutInfo{
-		AppVersion:    a.service.GetCurrentVersion(),
-		SystemVersion: "1.0.0",
-		AuthorEmail:   "igeekfan@foxmail.com",
-	}
+	return fromCoreAboutInfo(a.service.GetAboutInfo())
 }
 func (a *App) GetCurrentVersion() string { return a.service.GetCurrentVersion() }
+func (a *App) CheckForUpdate() (UpdateInfo, error) {
+	info, err := a.service.CheckForUpdate()
+	return fromCoreUpdateInfo(info), err
+}
 
 func (a *App) SynthesizeSpeech(req TTSRequest) (TTSResponse, error) {
 	audioData, format, err := a.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)

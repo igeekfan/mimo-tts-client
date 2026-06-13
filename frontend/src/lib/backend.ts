@@ -1,4 +1,4 @@
-import {SynthesisTask, ModelType, HistoryItem} from '../types'
+import {SynthesisTask, ModelType, HistoryItem, UpdateInfo, AboutInfo} from '../types'
 import {EventsOn} from './runtime'
 
 declare global {
@@ -10,9 +10,11 @@ declare global {
           SaveSettings(settings: {language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string; styleHistory: string[]}): Promise<void>
           SetLang(lang: string): Promise<void>
           GetLang(): Promise<string>
-          GetAboutInfo(): Promise<{appVersion: string; systemVersion: string; authorEmail: string}>
-          GetCurrentVersion(): Promise<string>
-          SelectFolder(): Promise<string>
+           GetAboutInfo(): Promise<AboutInfo>
+           GetCurrentVersion(): Promise<string>
+           CheckForUpdate(): Promise<UpdateInfo>
+           OpenReleasePage(): Promise<void>
+           SelectFolder(): Promise<string>
           OpenFolder(path: string): Promise<void>
           OpenFile(path: string): Promise<void>
           SynthesizeSpeech(req: {
@@ -272,13 +274,43 @@ export async function SaveSettings(settings: {language: string; theme: string; a
   })
 }
 
-export async function GetAboutInfo(): Promise<{appVersion: string; systemVersion: string; authorEmail: string}> {
+const RELEASE_PAGE_URL = 'https://github.com/igeekfan/TTS/releases'
+
+export async function GetAboutInfo(): Promise<AboutInfo> {
   const desktop = getDesktop()
   if (desktop) {
     return await desktop.GetAboutInfo()
   }
   const res = await fetch('/api/about')
   return await res.json()
+}
+
+export async function CheckForUpdate(): Promise<UpdateInfo> {
+  const desktop = getDesktop()
+  if (desktop) {
+    return await desktop.CheckForUpdate()
+  }
+  const res = await fetch('/api/update')
+  if (!res.ok) throw new Error('Failed to check for updates')
+  return await res.json()
+}
+
+export async function GetCurrentVersion(): Promise<string> {
+  const desktop = getDesktop()
+  if (desktop) {
+    return await desktop.GetCurrentVersion()
+  }
+  const res = await fetch('/api/version')
+  const data = await res.json()
+  return data.version
+}
+
+export async function OpenReleasePage(): Promise<void> {
+  const desktop = getDesktop()
+  if (desktop) {
+    return await desktop.OpenReleasePage()
+  }
+  window.open(RELEASE_PAGE_URL, '_blank', 'noopener,noreferrer')
 }
 
 export async function* SynthesizeSpeechStream(
