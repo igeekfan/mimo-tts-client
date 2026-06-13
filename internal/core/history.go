@@ -59,6 +59,46 @@ func (s *Service) GetHistory(limit int) ([]HistoryItem, error) {
 	return items, nil
 }
 
+func (s *Service) SearchHistory(query string, offset, limit int) ([]HistoryItem, int64, error) {
+	if s.db == nil {
+		return nil, 0, fmt.Errorf("database not initialized")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+
+	tx := s.db.Model(&HistoryRecord{})
+	if query != "" {
+		like := "%" + query + "%"
+		tx = tx.Where("text LIKE ? OR voice LIKE ? OR style LIKE ?", like, like, like)
+	}
+
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var records []HistoryRecord
+	if err := tx.Order("created_at DESC").Offset(offset).Limit(limit).Find(&records).Error; err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]HistoryItem, len(records))
+	for i, r := range records {
+		items[i] = HistoryItem{
+			ID:        r.ID,
+			Text:      r.Text,
+			Model:     r.Model,
+			Voice:     r.Voice,
+			Style:     r.Style,
+			HasAudio:  len(r.AudioData) > 0,
+			Format:    r.Format,
+			CreatedAt: r.CreatedAt,
+		}
+	}
+	return items, total, nil
+}
+
 func (s *Service) GetHistoryAudio(id uint) ([]byte, string, error) {
 	if s.db == nil {
 		return nil, "", fmt.Errorf("database not initialized")

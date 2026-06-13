@@ -24,8 +24,9 @@ type chatMessage struct {
 }
 
 type audioConfig struct {
-	Format string `json:"format"`
-	Voice  string `json:"voice,omitempty"`
+	Format              string `json:"format"`
+	Voice               string `json:"voice,omitempty"`
+	OptimizeTextPreview *bool  `json:"optimize_text_preview,omitempty"`
 }
 
 type chatResponse struct {
@@ -54,8 +55,15 @@ type streamChunk struct {
 	} `json:"error,omitempty"`
 }
 
-func (s *Service) buildMessages(text, style string) []chatMessage {
+func (s *Service) buildMessages(text, style, voice, model string, optimizeTextPreview bool) []chatMessage {
 	messages := []chatMessage{}
+	if model == "mimo-v2.5-tts-voicedesign" {
+		messages = append(messages, chatMessage{Role: "user", Content: voice})
+		if !optimizeTextPreview {
+			messages = append(messages, chatMessage{Role: "assistant", Content: text})
+		}
+		return messages
+	}
 	if style != "" {
 		messages = append(messages, chatMessage{Role: "user", Content: style})
 	} else {
@@ -81,7 +89,7 @@ func (s *Service) getApiConfig() (apiKey, baseUrl string, err error) {
 	return apiKey, baseUrl, nil
 }
 
-func (s *Service) SynthesizeSpeech(text, model, voice, style string) ([]byte, string, error) {
+func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTextPreview bool) ([]byte, string, error) {
 	apiKey, baseUrl, err := s.getApiConfig()
 	if err != nil {
 		return nil, "", err
@@ -90,20 +98,24 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string) ([]byte, st
 	if model == "" {
 		model = "mimo-v2.5-tts"
 	}
-	if voice == "" {
+	if voice == "" && model != "mimo-v2.5-tts-voicedesign" {
 		voice = "mimo_default"
 	}
 
-	messages := s.buildMessages(text, style)
+	messages := s.buildMessages(text, style, voice, model, optimizeTextPreview)
+
+	audioCfg := audioConfig{Format: "wav"}
+	if model != "mimo-v2.5-tts-voicedesign" {
+		audioCfg.Voice = voice
+	} else if optimizeTextPreview {
+		audioCfg.OptimizeTextPreview = &optimizeTextPreview
+	}
 
 	reqBody := chatRequest{
 		Model:    model,
 		Messages: messages,
-		Audio: audioConfig{
-			Format: "wav",
-			Voice:  voice,
-		},
-		Stream: false,
+		Audio:    audioCfg,
+		Stream:   false,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
@@ -176,7 +188,7 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string) ([]byte, st
 
 type StreamChunkCallback func(chunk []byte) error
 
-func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, callback StreamChunkCallback) error {
+func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optimizeTextPreview bool, callback StreamChunkCallback) error {
 	apiKey, baseUrl, err := s.getApiConfig()
 	if err != nil {
 		return err
@@ -185,20 +197,24 @@ func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, callb
 	if model == "" {
 		model = "mimo-v2.5-tts"
 	}
-	if voice == "" {
+	if voice == "" && model != "mimo-v2.5-tts-voicedesign" {
 		voice = "mimo_default"
 	}
 
-	messages := s.buildMessages(text, style)
+	messages := s.buildMessages(text, style, voice, model, optimizeTextPreview)
+
+	audioCfg := audioConfig{Format: "pcm16"}
+	if model != "mimo-v2.5-tts-voicedesign" {
+		audioCfg.Voice = voice
+	} else if optimizeTextPreview {
+		audioCfg.OptimizeTextPreview = &optimizeTextPreview
+	}
 
 	reqBody := chatRequest{
 		Model:    model,
 		Messages: messages,
-		Audio: audioConfig{
-			Format: "pcm16",
-			Voice:  voice,
-		},
-		Stream: true,
+		Audio:    audioCfg,
+		Stream:   true,
 	}
 
 	jsonData, err := json.Marshal(reqBody)

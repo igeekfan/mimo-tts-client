@@ -50,6 +50,10 @@ export function SaveSettings(arg1) {
   return window['go']['desktop']['App']['SaveSettings'](arg1);
 }
 
+export function SearchHistory(arg1, arg2, arg3) {
+  return window['go']['desktop']['App']['SearchHistory'](arg1, arg2, arg3);
+}
+
 export function SelectFolder() {
   return window['go']['desktop']['App']['SelectFolder']();
 }

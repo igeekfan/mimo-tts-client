@@ -44,7 +44,7 @@ func (a *App) GetAboutInfo() AboutInfo {
 func (a *App) GetCurrentVersion() string { return a.service.GetCurrentVersion() }
 
 func (a *App) SynthesizeSpeech(req TTSRequest) (TTSResponse, error) {
-	audioData, format, err := a.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style)
+	audioData, format, err := a.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
 	if err != nil {
 		return TTSResponse{
 			AudioData: "",
@@ -70,7 +70,7 @@ func (a *App) StartSynthesizeSpeechStream(req StreamTTSRequest) error {
 	eventName := "tts:stream:" + req.StreamID
 
 	go func() {
-		err := a.service.SynthesizeSpeechStream(req.Text, req.Model, req.Voice, req.Style, func(chunk []byte) error {
+		err := a.service.SynthesizeSpeechStream(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
 			wailsRuntime.EventsEmit(a.ctx, eventName, StreamChunk{
 				Data: base64.StdEncoding.EncodeToString(chunk),
 			})
@@ -103,6 +103,25 @@ func (a *App) GetHistory() ([]HistoryItem, error) {
 	}
 
 	return result, nil
+}
+
+func (a *App) SearchHistory(query string, offset, limit int) (HistorySearchResult, error) {
+	items, total, err := a.service.SearchHistory(query, offset, limit)
+	if err != nil {
+		return HistorySearchResult{}, err
+	}
+
+	result := make([]HistoryItem, len(items))
+	for i, item := range items {
+		result[i] = fromCoreHistoryItem(item)
+	}
+
+	return HistorySearchResult{
+		Items:  result,
+		Total:  total,
+		Offset: offset,
+		Limit:  limit,
+	}, nil
 }
 
 func (a *App) SaveHistory(req SaveHistoryRequest) error {

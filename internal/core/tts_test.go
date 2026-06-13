@@ -110,7 +110,7 @@ func TestSynthesizeSpeechIntegration(t *testing.T) {
 		apiKey: os.Getenv("TTS_API_KEY"),
 	}
 
-	audioData, format, err := s.SynthesizeSpeech("你好世界", "mimo-v2.5-tts", "mimo_default", "")
+	audioData, format, err := s.SynthesizeSpeech("你好世界", "mimo-v2.5-tts", "mimo_default", "", false)
 	if err != nil {
 		t.Fatalf("SynthesizeSpeech: %v", err)
 	}

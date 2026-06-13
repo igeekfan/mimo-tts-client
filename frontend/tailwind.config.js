@@ -41,11 +41,23 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        surface: {
+          DEFAULT: "var(--bg-secondary)",
+          tertiary: "var(--bg-tertiary)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      borderColor: {
+        DEFAULT: "var(--border)",
+      },
+      animation: {
+        spin: "spin 0.8s linear infinite",
       },
     },
   },

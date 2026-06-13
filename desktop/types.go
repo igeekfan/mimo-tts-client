@@ -3,21 +3,23 @@ package desktop
 const AppVersion = "1.0.0"
 
 type Settings struct {
-	Language string `json:"language"`
-	Theme    string `json:"theme"`
-	ApiKey   string `json:"apiKey"`
-	BaseUrl  string `json:"baseUrl"`
-	Model    string `json:"model"`
-	Voice    string `json:"voice"`
-	Style    string `json:"style"`
+	Language     string   `json:"language"`
+	Theme        string   `json:"theme"`
+	ApiKey       string   `json:"apiKey"`
+	BaseUrl      string   `json:"baseUrl"`
+	Model        string   `json:"model"`
+	Voice        string   `json:"voice"`
+	Style        string   `json:"style"`
+	StyleHistory []string `json:"styleHistory"`
 }
 
 type TTSRequest struct {
-	Text      string `json:"text"`
-	Model     string `json:"model"`
-	Voice     string `json:"voice"`
-	Style     string `json:"style"`
-	OutputDir string `json:"outputDir"`
+	Text                string `json:"text"`
+	Model               string `json:"model"`
+	Voice               string `json:"voice"`
+	Style               string `json:"style"`
+	OutputDir           string `json:"outputDir"`
+	OptimizeTextPreview bool   `json:"optimizeTextPreview"`
 }
 
 type TTSResponse struct {
@@ -27,11 +29,12 @@ type TTSResponse struct {
 }
 
 type StreamTTSRequest struct {
-	StreamID string `json:"streamId"`
-	Text     string `json:"text"`
-	Model    string `json:"model"`
-	Voice    string `json:"voice"`
-	Style    string `json:"style"`
+	StreamID            string `json:"streamId"`
+	Text                string `json:"text"`
+	Model               string `json:"model"`
+	Voice               string `json:"voice"`
+	Style               string `json:"style"`
+	OptimizeTextPreview bool   `json:"optimizeTextPreview"`
 }
 
 type StreamChunk struct {
@@ -63,6 +66,13 @@ type SaveHistoryRequest struct {
 type HistoryAudioResponse struct {
 	AudioData string `json:"audioData"`
 	Format    string `json:"format"`
+}
+
+type HistorySearchResult struct {
+	Items  []HistoryItem `json:"items"`
+	Total  int64         `json:"total"`
+	Offset int           `json:"offset"`
+	Limit  int           `json:"limit"`
 }
 
 type AboutInfo struct {

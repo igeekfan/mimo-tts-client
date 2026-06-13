@@ -47,6 +47,17 @@ const enUS = {
     '继续': 'Resume',
     '取消': 'Cancel',
     '合成已取消': 'Synthesis cancelled',
+    '智能润色': 'Smart Polish',
+    '音色设计提示': 'Voice Design model generates custom voices from text descriptions, no preset voices or audio samples needed',
+    '流式限制提示': 'Low-latency streaming is not yet available for this model. Stream calls will run in compatibility mode (waits for full inference before returning results)',
+    '合成文本将自动润色': 'When enabled, the synthesis text will be automatically polished by the model',
+    '选择文件': 'Choose File',
+    '未选择文件': 'No file selected',
+    '历史风格': 'History',
+    '删除': 'Delete',
+    '搜索历史记录': 'Search history',
+    '暂无更多记录': 'No more records',
+    '加载更多': 'Load more',
 }
 
 export default enUS

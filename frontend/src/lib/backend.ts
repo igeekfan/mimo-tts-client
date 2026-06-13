@@ -6,8 +6,8 @@ declare global {
     go?: {
       desktop?: {
         App: {
-          GetSettings(): Promise<{language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string}>
-          SaveSettings(settings: {language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string}): Promise<void>
+          GetSettings(): Promise<{language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string; styleHistory: string[]}>
+          SaveSettings(settings: {language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string; styleHistory: string[]}): Promise<void>
           SetLang(lang: string): Promise<void>
           GetLang(): Promise<string>
           GetAboutInfo(): Promise<{appVersion: string; systemVersion: string; authorEmail: string}>
@@ -21,6 +21,7 @@ declare global {
             voice: string
             style: string
             outputDir: string
+            optimizeTextPreview: boolean
           }): Promise<{audioData: string; format: string; error: string}>
           StartSynthesizeSpeechStream(req: {
             streamId: string
@@ -28,8 +29,10 @@ declare global {
             model: string
             voice: string
             style: string
+            optimizeTextPreview: boolean
           }): Promise<void>
           GetHistory(): Promise<HistoryItem[]>
+          SearchHistory(query: string, offset: number, limit: number): Promise<{items: HistoryItem[]; total: number; offset: number; limit: number}>
           SaveHistory(req: {
             text: string
             model: string
@@ -111,6 +114,7 @@ async function* synthesizeSpeechStreamDesktop(
   model: ModelType,
   voice: string,
   style: string,
+  optimizeTextPreview?: boolean,
 ): AsyncGenerator<Uint8Array, void, unknown> {
   const desktop = getDesktop()
   if (!desktop) {
@@ -179,7 +183,7 @@ async function* synthesizeSpeechStreamDesktop(
   })
 
   try {
-    await desktop.StartSynthesizeSpeechStream({streamId, text, model, voice, style})
+    await desktop.StartSynthesizeSpeechStream({streamId, text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false})
 
     while (true) {
       const nextChunk = queue.length > 0
@@ -229,15 +233,16 @@ export async function SynthesizeSpeech(
   model: ModelType,
   voice: string,
   style: string,
+  optimizeTextPreview?: boolean,
 ): Promise<{audioData: string; format: string; error: string}> {
   const desktop = getDesktop()
   if (desktop) {
-    return await desktop.SynthesizeSpeech({text, model, voice, style, outputDir: ''})
+    return await desktop.SynthesizeSpeech({text, model, voice, style, outputDir: '', optimizeTextPreview: optimizeTextPreview || false})
   }
   const res = await fetch('/api/synthesize', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({text, model, voice, style}),
+    body: JSON.stringify({text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false}),
   })
   const data = await res.json()
   if (data.error) {
@@ -246,7 +251,7 @@ export async function SynthesizeSpeech(
   return {audioData: data.audioData, format: data.format, error: ''}
 }
 
-export async function GetSettings(): Promise<{language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string}> {
+export async function GetSettings(): Promise<{language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string; styleHistory: string[]}> {
   const desktop = getDesktop()
   if (desktop) {
     return await desktop.GetSettings()
@@ -255,7 +260,7 @@ export async function GetSettings(): Promise<{language: string; theme: string; a
   return await res.json()
 }
 
-export async function SaveSettings(settings: {language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string}): Promise<void> {
+export async function SaveSettings(settings: {language: string; theme: string; apiKey: string; baseUrl: string; model: string; voice: string; style: string; styleHistory: string[]}): Promise<void> {
   const desktop = getDesktop()
   if (desktop) {
     return await desktop.SaveSettings(settings)
@@ -281,17 +286,18 @@ export async function* SynthesizeSpeechStream(
   model: ModelType,
   voice: string,
   style: string,
+  optimizeTextPreview?: boolean,
 ): AsyncGenerator<Uint8Array, void, unknown> {
   const desktop = getDesktop()
   if (desktop) {
-    yield* synthesizeSpeechStreamDesktop(text, model, voice, style)
+    yield* synthesizeSpeechStreamDesktop(text, model, voice, style, optimizeTextPreview)
     return
   }
 
   const res = await fetch('/api/synthesize-stream', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({text, model, voice, style}),
+    body: JSON.stringify({text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false}),
   })
 
   if (!res.ok) {
@@ -368,6 +374,16 @@ export async function GetHistory(): Promise<HistoryItem[]> {
     return await desktop.GetHistory()
   }
   const res = await fetch('/api/history')
+  return await res.json()
+}
+
+export async function SearchHistory(query: string, offset: number, limit: number): Promise<{items: HistoryItem[]; total: number; offset: number; limit: number}> {
+  const desktop = getDesktop()
+  if (desktop) {
+    return await desktop.SearchHistory(query, offset, limit)
+  }
+  const params = new URLSearchParams({q: query, offset: String(offset), limit: String(limit)})
+  const res = await fetch(`/api/history/search?${params}`)
   return await res.json()
 }
 

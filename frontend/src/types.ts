@@ -32,6 +32,7 @@ export interface Settings {
   model: ModelType
   voice: string
   style: string
+  styleHistory: string[]
 }
 
 export interface AboutInfo {

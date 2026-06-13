@@ -33,6 +33,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/synthesize-stream", s.handleSynthesizeStream)
 	s.mux.HandleFunc("/api/about", s.handleAbout)
 	s.mux.HandleFunc("/api/history", s.handleHistory)
+	s.mux.HandleFunc("/api/history/search", s.handleHistorySearch)
 	s.mux.HandleFunc("/api/history/audio", s.handleHistoryAudio)
 	s.mux.HandleFunc("/api/history/delete", s.handleHistoryDelete)
 	s.mux.HandleFunc("/api/history/clear", s.handleHistoryClear)
@@ -85,16 +86,17 @@ func (s *Server) handleSynthesize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Text  string `json:"text"`
-		Model string `json:"model"`
-		Voice string `json:"voice"`
-		Style string `json:"style"`
+		Text                string `json:"text"`
+		Model               string `json:"model"`
+		Voice               string `json:"voice"`
+		Style               string `json:"style"`
+		OptimizeTextPreview bool   `json:"optimizeTextPreview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	audioData, format, err := s.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style)
+	audioData, format, err := s.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
@@ -122,10 +124,11 @@ func (s *Server) handleSynthesizeStream(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req struct {
-		Text  string `json:"text"`
-		Model string `json:"model"`
-		Voice string `json:"voice"`
-		Style string `json:"style"`
+		Text                string `json:"text"`
+		Model               string `json:"model"`
+		Voice               string `json:"voice"`
+		Style               string `json:"style"`
+		OptimizeTextPreview bool   `json:"optimizeTextPreview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -142,7 +145,7 @@ func (s *Server) handleSynthesizeStream(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err := s.service.SynthesizeSpeechStream(req.Text, req.Model, req.Voice, req.Style, func(chunk []byte) error {
+	err := s.service.SynthesizeSpeechStream(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
 		data := base64.StdEncoding.EncodeToString(chunk)
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flusher.Flush()
@@ -190,6 +193,39 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Server) handleHistorySearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := r.URL.Query().Get("q")
+	offsetStr := r.URL.Query().Get("offset")
+	limitStr := r.URL.Query().Get("limit")
+
+	offset := 0
+	limit := 20
+	fmt.Sscanf(offsetStr, "%d", &offset)
+	fmt.Sscanf(limitStr, "%d", &limit)
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	items, total, err := s.service.SearchHistory(query, offset, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"items":  items,
+		"total":  total,
+		"offset": offset,
+		"limit":  limit,
+	})
 }
 
 func (s *Server) handleHistoryAudio(w http.ResponseWriter, r *http.Request) {

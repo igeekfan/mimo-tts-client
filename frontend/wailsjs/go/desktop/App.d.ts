@@ -26,6 +26,8 @@ export function SaveHistory(arg1:desktop.SaveHistoryRequest):Promise<void>;
 
 export function SaveSettings(arg1:desktop.Settings):Promise<void>;
 
+export function SearchHistory(arg1:string,arg2:number,arg3:number):Promise<desktop.HistorySearchResult>;
+
 export function SelectFolder():Promise<string>;
 
 export function SetLang(arg1:string):Promise<void>;
