@@ -1,0 +1,42 @@
+//go:build !web
+
+package main
+
+import (
+	"embed"
+
+	"mimo-tts-client/desktop"
+	"mimo-tts-client/internal/platform"
+
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+)
+
+//go:embed all:frontend/dist
+var assets embed.FS
+
+func main() {
+	platform.EnableUTF8Console()
+	app := desktop.NewApp(currentAppVersion())
+
+	err := wails.Run(&options.App{
+		Title:  "MiMo TTS Client",
+		Width:  960,
+		Height: 700,
+		MinWidth:  720,
+		MinHeight: 520,
+		AssetServer: &assetserver.Options{
+			Assets: assets,
+		},
+		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		OnStartup:        desktop.OnStartup(app),
+		Bind: []interface{}{
+			app,
+		},
+	})
+
+	if err != nil {
+		println("Error:", err.Error())
+	}
+}

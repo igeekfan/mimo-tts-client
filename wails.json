@@ -1,0 +1,21 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "mimo-tts-client",
+  "outputfilename": "mimo-tts-client",
+  "outputdirectory": "build/bin",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "igeekfan",
+    "email": "igeekfan@foxmail.com"
+  },
+  "info": {
+    "companyName": "igeekfan",
+    "productName": "MiMo TTS Client",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 igeekfan",
+    "comments": "A cross-platform TTS client powered by MiMo-V2.5-TTS"
+  }
+}
