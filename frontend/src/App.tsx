@@ -14,6 +14,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {ScrollArea} from '@/components/ui/scroll-area'
+import {Pagination} from '@/components/ui/pagination'
 import {toast} from 'sonner'
 import {Volume2, Download, Trash2, Play, Pause, Square, Sun, Moon, Mic, Settings, AlertTriangle, Terminal, ChevronUp, ChevronDown, ExternalLink, Globe, Mail, RefreshCw, GitFork} from 'lucide-react'
 import './App.css'
@@ -117,7 +118,7 @@ function App() {
     const [styleHistory, setStyleHistory] = useState<string[]>([])
     const [historySearch, setHistorySearch] = useState('')
     const [historyTotal, setHistoryTotal] = useState(0)
-    const [historyOffset, setHistoryOffset] = useState(0)
+    const [historyPage, setHistoryPage] = useState(1)
     const historyPageSize = 20
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
     const [isStreaming, setIsStreaming] = useState(false)
@@ -174,11 +175,12 @@ function App() {
 
         GetAboutInfo().then(info => setAboutInfo(info)).catch(console.error)
 
-        loadHistory('', 0, true)
+        loadHistory('', 1)
     }, [])
 
-    const loadHistory = useCallback(async (query: string, offset: number, replace: boolean) => {
+    const loadHistory = useCallback(async (query: string, page: number) => {
         try {
+            const offset = (page - 1) * historyPageSize
             const result = await SearchHistory(query, offset, historyPageSize)
             const loadedTasks: SynthesisTask[] = []
             for (const item of result.items) {
@@ -203,9 +205,9 @@ function App() {
                     dbId: item.id,
                 })
             }
-            setTasks(prev => replace ? loadedTasks : [...prev, ...loadedTasks])
+            setTasks(loadedTasks)
             setHistoryTotal(result.total)
-            setHistoryOffset(offset + result.items.length)
+            setHistoryPage(page)
         } catch (e) {
             console.error('Failed to load history:', e)
         }
@@ -338,12 +340,12 @@ function App() {
 
     const handleHistorySearch = useCallback((query: string) => {
         setHistorySearch(query)
-        loadHistory(query, 0, true)
+        loadHistory(query, 1)
     }, [loadHistory])
 
-    const handleLoadMore = useCallback(() => {
-        loadHistory(historySearch, historyOffset, false)
-    }, [loadHistory, historySearch, historyOffset])
+    const handlePageChange = useCallback((page: number) => {
+        loadHistory(historySearch, page)
+    }, [loadHistory, historySearch])
 
     const handleSynthesize = useCallback(async () => {
         if (!inputText.trim()) { toast.error(t('请输入文本')); return }
@@ -479,7 +481,7 @@ function App() {
         if (playingTaskId && tasks.find(t => t.id === playingTaskId)?.status === 'completed') stopCurrentAudio()
         ClearHistory().catch(console.error)
         setTasks(prev => prev.filter(t => t.status !== 'completed'))
-        setHistoryTotal(0); setHistoryOffset(0)
+        setHistoryTotal(0); setHistoryPage(1)
     }, [playingTaskId, tasks, stopCurrentAudio])
 
     const handleLogDragStart = useCallback((e: React.MouseEvent) => {
@@ -586,9 +588,9 @@ function App() {
                                                             {aboutInfo.githubRepo} <ExternalLink className="w-3 h-3" />
                                                         </a>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Globe className="w-4 h-4 text-muted-foreground" />
-                                                        <span className="text-muted-foreground">{t('系统版本')}:</span>
+                                                    <div className="flex items-center gap-2 flex-nowrap">
+                                                        <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+                                                        <span className="text-muted-foreground whitespace-nowrap">{t('系统版本')}:</span>
                                                         <span>{aboutInfo.systemVersion}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -1089,20 +1091,13 @@ function App() {
                                                 </CardContent>
                                             </Card>
                                         ))}
-                                        {tasks.length < historyTotal && (
-                                            <Button 
-                                                variant="outline" 
-                                                className="w-full h-7 text-xs" 
-                                                size="sm" 
-                                                onClick={handleLoadMore}
-                                            >
-                                                {t('加载更多')} ({tasks.length}/{historyTotal})
-                                            </Button>
-                                        )}
-                                        {tasks.length >= historyTotal && tasks.length > 0 && (
-                                            <p className="text-center text-[10px] text-muted-foreground py-1.5">
-                                                {t('暂无更多记录')}
-                                            </p>
+                                        {historyTotal > historyPageSize && (
+                                            <Pagination
+                                                currentPage={historyPage}
+                                                totalPages={Math.ceil(historyTotal / historyPageSize)}
+                                                onPageChange={handlePageChange}
+                                                className="pt-1 pb-2"
+                                            />
                                         )}
                                     </>
                                 )}
