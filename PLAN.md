@@ -1,41 +1,32 @@
-# MiMo TTS Client 开发计划
+# MiMo TTS Client — 开发参考
 
-## 项目概述
+> 项目介绍、功能特性、运行方式等请参见 [README](README.md) 或 [README.zh-CN.md](README.zh-CN.md)。
 
-基于小米 MiMo-V2.5-TTS 系列模型，开发跨平台桌面端语音合成客户端。
-
-### 技术栈
-
-- **后端**：Go + Wails v2 + GORM + SQLite
-- **前端**：React 18 + TypeScript + Vite + Tailwind CSS + Radix UI
-- **API**：MiMo-V2.5-TTS（兼容 OpenAI 接口）
-
----
-
-## 待实现
-
-### 历史管理
-- [ ] 前端搜索与筛选 UI
-
-### 音频导出
-- [ ] 下载为 MP3 文件（需 ffmpeg）
-
----
-
-## 项目结构
+## 架构
 
 ```
-TTS/
+Frontend (React + TS)
+       │
+   ┌───┴───┐
+桌面模式    Web 模式
+Wails Bind  fetch/SSE
+   │           │
+   └───┬───────┘
+   core/Service  ← 共享业务逻辑
+       │
+   GORM + SQLite
+```
+
+---
+
+## 目录结构
+
+```
 ├── main.go                    # Desktop 入口
 ├── main_web.go                # Web 入口（build tag: web）
 ├── version.go                 # 版本号
 ├── wails.json                 # Wails 配置
 ├── Dockerfile                 # Docker 构建（Web 模式）
-├── AGENTS.md                  # AI 助手指南
-├── go.mod / go.sum
-├── cmd/
-│   └── test-api/
-│       └── main.go            # API 测试工具
 ├── desktop/
 │   ├── app.go                 # App 结构体
 │   ├── app_bindings.go        # Wails 绑定方法
@@ -43,104 +34,96 @@ TTS/
 │   └── types.go               # Desktop 类型定义
 ├── internal/
 │   ├── core/
-│   │   ├── service.go         # 核心服务
-│   │   ├── tts.go             # TTS 合成（MiMo API）
-│   │   ├── settings.go        # 设置管理
-│   │   ├── db.go              # 数据库（SQLite + GORM）
+│   │   ├── service.go         # 核心服务、启动逻辑、环境变量
+│   │   ├── tts.go             # TTS 合成（MiMo API 调用）
+│   │   ├── history.go         # 历史记录 CRUD
+│   │   ├── settings.go        # 设置管理（GORM）
+│   │   ├── about.go           # 应用信息
+│   │   ├── update.go          # 自动更新检测
+│   │   ├── db.go              # 数据库初始化
 │   │   ├── types.go           # 类型定义
-│   │   └── i18n.go            # 国际化
+│   │   └── i18n.go            # 后端国际化
 │   ├── httpapi/
-│   │   ├── server.go          # HTTP API + SPA 文件服务
+│   │   ├── server.go          # REST API + SPA 文件服务
 │   │   └── events.go          # SSE EventHub
 │   └── platform/
 │       └── hidecmd.go         # Windows CMD 窗口隐藏
 ├── frontend/
-│   ├── src/
-│   │   ├── main.tsx           # 入口
-│   │   ├── App.tsx            # 主组件
-│   │   ├── App.css            # 主样式
-│   │   ├── style.css          # 额外样式
-│   │   ├── theme.css          # 主题变量
-│   │   ├── types.ts           # TypeScript 类型
-│   │   ├── vite-env.d.ts
-│   │   ├── assets/
-│   │   ├── components/
-│   │   │   ├── ErrorBoundary.tsx
-│   │   │   └── ui/            # shadcn/ui 组件
-│   │   ├── styles/
-│   │   │   └── globals.css
-│   │   ├── lib/
-│   │   │   ├── backend.ts     # 双模式 API 层（Wails/HTTP）
-│   │   │   └── runtime.ts     # 双模式事件系统
-│   │   └── i18n/
-│   │       ├── context.tsx    # useI18n hook
-│   │       ├── zh-CN.ts
-│   │       └── en-US.ts
-│   └── package.json
-├── build/
-│   └── README.md
-└── PLAN.md
+│   └── src/
+│       ├── App.tsx            # 主组件
+│       ├── App.css            # 样式
+│       ├── types.ts           # TS 类型
+│       ├── lib/
+│       │   ├── backend.ts     # 双模式 API 层
+│       │   └── runtime.ts     # 双模式事件系统
+│       ├── components/
+│       │   ├── ErrorBoundary.tsx
+│       │   └── ui/            # shadcn/ui 组件
+│       └── i18n/
+│           ├── context.tsx    # useI18n hook
+│           ├── zh-CN.ts
+│           └── en-US.ts
+└── cmd/test-api/main.go       # API 测试工具
 ```
 
 ---
 
 ## API 接口（Web 模式）
 
-### POST /api/synthesize
-非流式合成语音
+### TTS 合成
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/synthesize` | 非流式合成，返回 base64 WAV |
+| POST | `/api/synthesize-stream` | 流式合成（SSE），逐块返回 PCM16 |
 
-**请求**: `{text, model, voice, style, optimizeTextPreview}`
-**响应**: `{audioData (base64), format, error}`
+### 设置
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/settings` | 获取设置 |
+| POST | `/api/settings` | 保存设置 |
 
-### POST /api/synthesize-stream
-流式合成（SSE），每个事件返回 base64 编码的 PCM16 块，`data: [DONE]` 结束
+### 历史记录
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/history` | 获取历史（最多 50 条） |
+| POST | `/api/history` | 保存记录 |
+| GET | `/api/history/search?q=&offset=&limit=` | 搜索（分页） |
+| GET | `/api/history/audio?id=` | 获取音频数据 |
+| POST | `/api/history/delete` | 删除记录 `{id}` |
+| POST | `/api/history/clear` | 清空全部 |
 
-### GET /api/settings
-获取设置
-
-### POST /api/settings
-保存设置
-
-### GET /api/about
-获取应用信息
-
-### GET /api/history
-获取合成历史（GET，最多 50 条）
-
-### POST /api/history
-保存合成记录
-
-### GET /api/history/search?q=&offset=&limit=
-搜索合成历史（支持分页）
-
-### GET /api/history/audio?id=
-获取历史音频数据
-
-### POST /api/history/delete
-删除历史记录 `{id}`
-
-### POST /api/history/clear
-清空所有历史记录
-
-### GET /api/events
-SSE 事件流（用于桌面模式日志转发等）
+### 其他
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/about` | 应用信息 |
+| GET | `/api/events` | SSE 事件流 |
 
 ---
 
-## 运行方式
+## 待实现
 
-```bash
-# 开发模式
-wails dev
+### 风格预设补全
+- [x] 补充 API 文档中缺失的风格分类与预设值
 
-# 构建桌面版
-wails build
+| 分类 | 缺失风格 |
+|------|---------|
+| 复合情绪 | 怅然、欣慰、无奈、愧疚、释然、嫉妒、厌倦、忐忑、动情 |
+| 整体语调 | 俏皮、深沉、干练、凌厉 |
+| 音色定位 | 醇厚、清亮、稚嫩、苍老、醇雅 |
+| 人设腔调 | 夹子音、御姐音、正太音、大叔音、台湾腔 |
+| 方言 | 河南话 |
 
-# Web 模式
-go build -tags web -o tts-server .
-./tts-server
+### 音频标签（Audio Tags）
+- [x] 提供 UI 一键插入音频标签到文本中
 
-# Web 模式 Docker 构建
-docker build -t tts .
-docker run -p 8080:8080 -e TTS_API_KEY=your_key tts
-```
+API 支持在 `assistant` content 中嵌入 `[标签]` 实现细粒度控制：
+
+| 分类 | 标签 |
+|------|------|
+| 语速与节奏 | 吸气、深呼吸、叹气、长叹一口气、喘息、屏息 |
+| 情绪状态 | 紧张、害怕、激动、疲惫、委屈、撒娇、心虚、震惊、不耐烦 |
+| 语音特征 | 颤抖、声音颤抖、变调、破音、鼻音、气声、沙哑 |
+| 哭笑表达 | 笑、轻笑、大笑、冷笑、抽泣、呜咽、哽咽、嚎啕大哭 |
+
+### 唱歌模式限制
+- [x] 唱歌风格仅对 `mimo-v2.5-tts` 有效，voicedesign / voiceclone 下应禁用或隐藏
