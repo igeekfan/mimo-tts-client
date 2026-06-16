@@ -147,7 +147,6 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 	}
 
 	s.emitLog("[TTS] 响应状态: %d, 长度: %d", resp.StatusCode, len(body))
-	s.emitLog("[TTS] 响应内容: %s", string(body[:min(500, len(body))]))
 
 	if resp.StatusCode != http.StatusOK {
 		var errResp chatResponse
