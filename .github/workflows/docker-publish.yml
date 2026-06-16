@@ -71,3 +71,5 @@ jobs:
           sbom: false
           build-args: |
             APP_VERSION=${{ steps.version.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
