@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -40,6 +41,12 @@ func (s *Service) GetSettings() Settings {
 		defaults.Voice = rec.Voice
 	}
 	defaults.Style = rec.Style
+	if rec.StyleHistory != "" {
+		var history []string
+		if err := json.Unmarshal([]byte(rec.StyleHistory), &history); err == nil {
+			defaults.StyleHistory = history
+		}
+	}
 	return defaults
 }
 
@@ -48,15 +55,22 @@ func (s *Service) SaveSettings(settings Settings) error {
 		return fmt.Errorf("database not initialized")
 	}
 
+	var styleHistoryJSON string
+	if len(settings.StyleHistory) > 0 {
+		if b, err := json.Marshal(settings.StyleHistory); err == nil {
+			styleHistoryJSON = string(b)
+		}
+	}
 	rec := SettingsRecord{
-		ID:       1,
-		Language: settings.Language,
-		Theme:    settings.Theme,
-		ApiKey:   settings.ApiKey,
-		BaseUrl:  settings.BaseUrl,
-		Model:    settings.Model,
-		Voice:    settings.Voice,
-		Style:    settings.Style,
+		ID:           1,
+		Language:     settings.Language,
+		Theme:        settings.Theme,
+		ApiKey:       settings.ApiKey,
+		BaseUrl:      settings.BaseUrl,
+		Model:        settings.Model,
+		Voice:        settings.Voice,
+		Style:        settings.Style,
+		StyleHistory: styleHistoryJSON,
 	}
 	return s.db.Save(&rec).Error
 }

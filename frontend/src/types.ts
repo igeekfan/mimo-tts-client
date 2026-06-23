@@ -62,6 +62,7 @@ export interface SynthesisTask {
   status: 'pending' | 'synthesizing' | 'completed' | 'error'
   progress: number
   audioBlob?: Blob
+  hasAudio?: boolean
   error?: string
   createdAt: string
   dbId?: number

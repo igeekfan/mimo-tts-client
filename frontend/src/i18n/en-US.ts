@@ -23,6 +23,9 @@ const enUS: Record<string, string> = {
     'voice.supportedFormats': 'Supported formats',
     'voice.maxFileSize': 'Max file size',
     'voice.designTip': 'Voice Design model generates custom voices from text descriptions, no preset voices or audio samples needed',
+    'voice.loading': 'Loading...',
+    'voice.fileTooLarge': 'File exceeds 10MB limit',
+    'voice.readFileError': 'Failed to read file',
 
     // Style
     'style': 'Style',
@@ -38,6 +41,7 @@ const enUS: Record<string, string> = {
     'synthesis.synthesize': 'Synthesize',
     'synthesis.stream': 'Stream',
     'synthesis.synthesizing': 'Synthesizing...',
+    'synthesis.streaming': 'Streaming...',
     'synthesis.completed': 'Synthesis completed',
     'synthesis.enterText': 'Please enter text',
     'synthesis.cancelled': 'Synthesis cancelled',
@@ -53,6 +57,7 @@ const enUS: Record<string, string> = {
     'history.noMore': 'No more records',
     'history.loadMore': 'Load more',
     'history.firstHint': 'Start synthesizing your first voice',
+    'history.loadingAudio': 'Loading audio...',
 
     // Settings
     'settings.title': 'Settings',
@@ -89,6 +94,10 @@ const enUS: Record<string, string> = {
     'logs.output': 'Log Output',
     'logs.empty': 'No logs yet',
 
+    // Audio
+    'audio.loading': 'Loading audio...',
+    'audio.notAvailable': 'No audio available',
+
     // Tags
     'tags.emotion': 'Emotion',
     'tags.compound': 'Compound',
@@ -108,6 +117,7 @@ const enUS: Record<string, string> = {
     'common.delete': 'Delete',
     'common.clear': 'Clear',
     'common.quickSelect': 'Quick Select',
+    'common.back': 'Back',
 
     // Error Boundary
     'errorBoundary.title': 'Something went wrong',

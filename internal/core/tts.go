@@ -55,6 +55,13 @@ type streamChunk struct {
 	} `json:"error,omitempty"`
 }
 
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
 func (s *Service) buildMessages(text, style, voice, model string, optimizeTextPreview bool) []chatMessage {
 	messages := []chatMessage{}
 	if model == "mimo-v2.5-tts-voicedesign" {
@@ -123,7 +130,7 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 		return nil, "", fmt.Errorf("请求序列化失败: %w", err)
 	}
 
-	s.emitLog("[TTS] 请求: %s", string(jsonData))
+	s.emitLog("[TTS] 请求: model=%s, voice=%s, format=wav, textLen=%d", model, truncateForLog(voice, 30), len(text))
 
 	url := baseUrl + "/chat/completions"
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
@@ -146,14 +153,12 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 		return nil, "", fmt.Errorf("读取响应失败: %w", err)
 	}
 
-	s.emitLog("[TTS] 响应状态: %d, 长度: %d", resp.StatusCode, len(body))
-
 	if resp.StatusCode != http.StatusOK {
 		var errResp chatResponse
 		if json.Unmarshal(body, &errResp) == nil && errResp.Error != nil {
 			return nil, "", fmt.Errorf("API 错误: %s", errResp.Error.Message)
 		}
-		return nil, "", fmt.Errorf("API 返回状态码 %d: %s", resp.StatusCode, string(body))
+		return nil, "", fmt.Errorf("API 返回状态码 %d: %s", resp.StatusCode, truncateForLog(string(body), 200))
 	}
 
 	var chatResp chatResponse
@@ -175,12 +180,11 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 		return nil, "", fmt.Errorf("解码音频失败: %w", err)
 	}
 
+	s.emitLog("[TTS] 合成完成: %d bytes", len(audioData))
 	if len(audioData) >= 4 && string(audioData[:4]) == "RIFF" {
-		s.emitLog("[TTS] 合成完成: WAV 格式, %d bytes", len(audioData))
 		return audioData, "wav", nil
 	}
 
-	s.emitLog("[TTS] 合成完成: 原始 PCM 格式, %d bytes", len(audioData))
 	wavData := addWavHeader(audioData, 24000, 1, 16)
 	return wavData, "wav", nil
 }
@@ -221,7 +225,7 @@ func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optim
 		return fmt.Errorf("请求序列化失败: %w", err)
 	}
 
-	s.emitLog("[TTS Stream] 请求: %s", string(jsonData))
+	s.emitLog("[TTS Stream] 请求: model=%s, voice=%s, format=pcm16, textLen=%d", model, truncateForLog(voice, 30), len(text))
 
 	url := baseUrl + "/chat/completions"
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
@@ -241,7 +245,7 @@ func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optim
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API 返回状态码 %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("API 返回状态码 %d: %s", resp.StatusCode, truncateForLog(string(body), 200))
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
