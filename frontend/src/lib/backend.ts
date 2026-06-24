@@ -236,6 +236,7 @@ export async function SynthesizeSpeech(
   voice: string,
   style: string,
   optimizeTextPreview?: boolean,
+  signal?: AbortSignal,
 ): Promise<{audioData: string; format: string; error: string}> {
   const desktop = getDesktop()
   if (desktop) {
@@ -245,6 +246,7 @@ export async function SynthesizeSpeech(
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false}),
+    signal,
   })
   const data = await res.json()
   if (data.error) {
@@ -319,6 +321,7 @@ export async function* SynthesizeSpeechStream(
   voice: string,
   style: string,
   optimizeTextPreview?: boolean,
+  signal?: AbortSignal,
 ): AsyncGenerator<Uint8Array, void, unknown> {
   const desktop = getDesktop()
   if (desktop) {
@@ -330,6 +333,7 @@ export async function* SynthesizeSpeechStream(
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false}),
+    signal,
   })
 
   if (!res.ok) {

@@ -40,7 +40,7 @@ export function useSynthesis(
         const abortController = new AbortController()
         synthesizeAbortRef.current = abortController
         try {
-            const result = await SynthesizeSpeech(text, model, voice, style, optimizeTextPreview)
+            const result = await SynthesizeSpeech(text, model, voice, style, optimizeTextPreview, abortController.signal)
             if (abortController.signal.aborted) {
                 updateTask(taskId, {status: 'error', error: t('synthesis.cancelled')})
                 return
@@ -88,6 +88,7 @@ export function useSynthesis(
         addTask(newTask)
         setIsStreaming(true)
         setIsStreamPaused(false)
+        currentTaskIdRef.current = taskId
         const abortController = new AbortController()
         streamAbortRef.current = abortController
         let lastProgressUpdate = 0
@@ -99,7 +100,7 @@ export function useSynthesis(
             let totalLength = 0
             let nextStartTime = audioContext.currentTime + 0.1
 
-            for await (const chunk of SynthesizeSpeechStream(text, model, voice, style, optimizeTextPreview)) {
+            for await (const chunk of SynthesizeSpeechStream(text, model, voice, style, optimizeTextPreview, abortController.signal)) {
                 if (abortController.signal.aborted) break
                 while (isStreamPaused && !abortController.signal.aborted) await new Promise(resolve => setTimeout(resolve, 100))
                 if (abortController.signal.aborted) break
@@ -153,6 +154,7 @@ export function useSynthesis(
             setIsStreaming(false)
             setIsStreamPaused(false)
             audioContextRef.current = null
+            currentTaskIdRef.current = null
             streamAbortRef.current = null
         }
     }, [t, addTask, updateTask, incrementTotal, isStreamPaused])
@@ -180,9 +182,14 @@ export function useSynthesis(
             audioContextRef.current.close()
             audioContextRef.current = null
         }
+        if (currentTaskIdRef.current) {
+            updateTask(currentTaskIdRef.current, {status: 'error', error: t('synthesis.cancelled')})
+        }
         setIsStreaming(false)
         setIsStreamPaused(false)
-    }, [])
+        currentTaskIdRef.current = null
+        streamAbortRef.current = null
+    }, [updateTask, t])
 
     return {
         isSynthesizing,

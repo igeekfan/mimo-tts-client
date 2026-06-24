@@ -8,6 +8,7 @@ import {useHistoryContext} from '../lib/contexts'
 import {useAudioPlayerContext} from '../lib/contexts'
 import {useInputContext} from '../lib/contexts'
 import {useDownload} from '../hooks/useDownload'
+import {selectSynthesisPreviewTasks} from '../lib/synthesisPreviewTasks'
 
 export default function SynthesisPage() {
     const {inputText, setInputText} = useInputContext()
@@ -22,6 +23,7 @@ export default function SynthesisPage() {
     const history = useHistoryContext()
     const audioPlayer = useAudioPlayerContext()
     const {download} = useDownload()
+    const previewTasks = selectSynthesisPreviewTasks(history.tasks)
 
     const synthesis = useSynthesis(
         history.addTask,
@@ -95,7 +97,7 @@ export default function SynthesisPage() {
                     {/* 合成预览 - 左列底部，自动填满剩余空间 */}
                     <div className="flex-1 min-h-0 p-4 pt-0">
                         <SynthesisPreview
-                            tasks={history.tasks}
+                            tasks={previewTasks}
                             isSynthesizing={synthesis.isSynthesizing}
                             isStreaming={synthesis.isStreaming}
                             playingTaskId={audioPlayer.playingTaskId}
