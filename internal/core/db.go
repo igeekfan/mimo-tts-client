@@ -11,14 +11,15 @@ import (
 )
 
 type SettingsRecord struct {
-	ID       uint   `gorm:"primaryKey"`
-	Language string
-	Theme    string
-	ApiKey   string
-	BaseUrl  string
-	Model    string
-	Voice    string
-	Style    string
+	ID           uint   `gorm:"primaryKey"`
+	Language     string
+	Theme        string
+	ApiKey       string
+	BaseUrl      string
+	Model        string
+	Voice        string
+	Style        string
+	StyleHistory string `gorm:"type:text"` // JSON array of strings
 }
 
 type HistoryRecord struct {

@@ -23,6 +23,9 @@ const zhCN: Record<string, string> = {
     'voice.supportedFormats': '支持格式',
     'voice.maxFileSize': '最大文件大小',
     'voice.designTip': '音色设计模型将通过文本描述自动生成音色，无需预置或音频样本',
+    'voice.loading': '加载中...',
+    'voice.fileTooLarge': '文件超过 10MB 限制',
+    'voice.readFileError': '读取文件失败',
 
     // Style
     'style': '风格',
@@ -38,6 +41,7 @@ const zhCN: Record<string, string> = {
     'synthesis.synthesize': '合成语音',
     'synthesis.stream': '流式合成',
     'synthesis.synthesizing': '合成中...',
+    'synthesis.streaming': '流式合成中...',
     'synthesis.completed': '合成完成',
     'synthesis.enterText': '请输入文本',
     'synthesis.cancelled': '合成已取消',
@@ -53,6 +57,7 @@ const zhCN: Record<string, string> = {
     'history.noMore': '暂无更多记录',
     'history.loadMore': '加载更多',
     'history.firstHint': '开始合成你的第一段语音',
+    'history.loadingAudio': '加载音频中...',
 
     // Settings
     'settings.title': '设置',
@@ -89,6 +94,10 @@ const zhCN: Record<string, string> = {
     'logs.output': '日志输出',
     'logs.empty': '暂无日志',
 
+    // Audio
+    'audio.loading': '加载音频...',
+    'audio.notAvailable': '暂无音频',
+
     // Tags
     'tags.emotion': '情绪',
     'tags.compound': '复合',
@@ -108,6 +117,7 @@ const zhCN: Record<string, string> = {
     'common.delete': '删除',
     'common.clear': '清空',
     'common.quickSelect': '快速选择',
+    'common.back': '返回',
 
     // Error Boundary
     'errorBoundary.title': '出错了',

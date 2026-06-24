@@ -4,6 +4,13 @@
     <meta charset="UTF-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>MiMo TTS CLIENT</title>
+    <script>
+        // Apply theme immediately to prevent flash of wrong theme
+        (function() {
+            var theme = localStorage.getItem('TTS-theme') || 'dark';
+            document.documentElement.classList.add(theme);
+        })();
+    </script>
 </head>
 <body>
 <div id="root"></div>

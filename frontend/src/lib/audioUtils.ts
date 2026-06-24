@@ -1,7 +1,16 @@
+import {SynthesisTask} from '../types'
+
 let taskIdCounter = 0
 
 export function createTaskId(): string {
     return `task_${Date.now()}_${++taskIdCounter}`
+}
+
+export function isLoadingAudio(task: SynthesisTask | null | undefined): boolean {
+    if (!task?.dbId) return false
+    // 如果明确标记为无音频，不显示加载中
+    if (task.hasAudio === false) return false
+    return !task.audioBlob && task.status === 'completed'
 }
 
 export function formatTime(seconds: number): string {

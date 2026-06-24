@@ -1,13 +1,15 @@
+import {useCallback, useMemo, useEffect} from 'react'
 import {useI18n} from '../i18n/context'
 import {SynthesisTask} from '../types'
-import {formatTime} from '../lib/audioUtils'
+import {isLoadingAudio as checkIsLoadingAudio} from '../lib/audioUtils'
 import {Button} from '@/components/ui/button'
-import {Card, CardContent} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 import {Badge} from '@/components/ui/badge'
 import {ScrollArea} from '@/components/ui/scroll-area'
 import {Pagination} from '@/components/ui/pagination'
-import {Mic, Download, Trash2, Play, Pause, Square} from 'lucide-react'
+import {Trash2, History, ArrowRight} from 'lucide-react'
+import HistoryTaskItem from './HistoryTaskItem'
+import AudioPlayer from './AudioPlayer'
 
 interface HistoryPanelProps {
     tasks: SynthesisTask[]
@@ -30,6 +32,8 @@ interface HistoryPanelProps {
     onDelete: (taskId: string) => void
     onClearCompleted: () => void
     onDownload: (task: SynthesisTask) => void
+    onLoadAudio: (taskId: string) => void
+    onNavigateToSynthesis?: () => void
 }
 
 export default function HistoryPanel({
@@ -37,27 +41,75 @@ export default function HistoryPanel({
     historySearch, onHistorySearch, onPageChange,
     expandedTaskId, setExpandedTaskId,
     playingTaskId, isPlaying, currentTime, duration,
-    onPlay, onTogglePlay, onStop, onSeek, onDelete, onClearCompleted, onDownload
+    onPlay, onTogglePlay, onStop, onSeek, onDelete, onClearCompleted, onDownload, onLoadAudio,
+    onNavigateToSynthesis
 }: HistoryPanelProps) {
     const {t} = useI18n()
 
+    const handleExpand = useCallback((taskId: string) => {
+        setExpandedTaskId(taskId)
+        onLoadAudio(taskId)
+    }, [setExpandedTaskId, onLoadAudio])
+
+    const handleCollapse = useCallback(() => {
+        setExpandedTaskId(null)
+    }, [setExpandedTaskId])
+
+    const activeTaskId = expandedTaskId || playingTaskId
+    const activeTask = useMemo(() => {
+        if (!activeTaskId) return null
+        return tasks.find(t => t.id === activeTaskId) || null
+    }, [tasks, activeTaskId])
+
+    const isLoadingAudio = useMemo(() => checkIsLoadingAudio(activeTask), [activeTask])
+
+    // active task 变化时自动加载音频
+    useEffect(() => {
+        if (activeTask?.dbId && !activeTask.audioBlob && activeTask.status === 'completed') {
+            onLoadAudio(activeTask.id)
+        }
+    }, [activeTask?.id, activeTask?.dbId, activeTask?.audioBlob, activeTask?.status, onLoadAudio])
+
+    const handlePlayerPlay = useCallback(() => {
+        if (activeTask?.audioBlob) onPlay(activeTask)
+    }, [activeTask, onPlay])
+
+    const handlePlayerDownload = useCallback(() => {
+        if (activeTask) onDownload(activeTask)
+    }, [activeTask, onDownload])
+
     return (
-        <Card className="flex flex-col border-0 shadow-sm">
-            <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
-                <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold">{t('history.title')}</h3>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
-                        {historyTotal}
-                    </Badge>
+        <div className="flex flex-col h-full">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between px-3 py-2 border-b shrink-0">
+                <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-semibold">{t('history.title')}</h3>
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0">{historyTotal}</Badge>
                 </div>
                 {tasks.some(t => t.status === 'completed') && (
-                    <Button variant="ghost" size="sm" className="h-6 gap-1 text-[10px] text-muted-foreground hover:text-foreground" onClick={onClearCompleted}>
-                        <Trash2 className="w-3 h-3" />
+                    <Button variant="ghost" size="sm" className="h-5 gap-0.5 text-[10px] text-muted-foreground hover:text-foreground" onClick={onClearCompleted}>
+                        <Trash2 className="w-2.5 h-2.5" />
                         <span>{t('history.clearCompleted')}</span>
                     </Button>
                 )}
             </div>
-            <div className="px-3 py-1.5 border-b">
+
+            {/* 音频播放器 */}
+            <AudioPlayer
+                task={activeTask}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration}
+                isLoadingAudio={isLoadingAudio}
+                onPlay={handlePlayerPlay}
+                onTogglePlay={onTogglePlay}
+                onStop={onStop}
+                onSeek={onSeek}
+                onDownload={handlePlayerDownload}
+            />
+
+            {/* 搜索栏 */}
+            <div className="px-3 py-1.5 border-b shrink-0">
                 <Input
                     placeholder={t('history.search')}
                     value={historySearch}
@@ -65,125 +117,41 @@ export default function HistoryPanel({
                     className="h-7 text-xs"
                 />
             </div>
-            <ScrollArea className="flex-1">
-                <div className="p-2 space-y-2">
+
+            {/* 任务列表 */}
+            <ScrollArea className="flex-1 min-h-0">
+                <div className="p-2 space-y-1.5">
                     {tasks.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                                <Mic className="w-6 h-6 opacity-50" />
+                            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                                <History className="w-6 h-6 opacity-30" />
                             </div>
-                            <p className="text-xs font-medium">{t('history.empty')}</p>
-                            <p className="text-[10px] mt-0.5">{t('history.firstHint')}</p>
+                            <p className="text-xs font-medium mb-0.5">{t('history.empty')}</p>
+                            <p className="text-[11px] text-center mb-3">{t('history.firstHint')}</p>
+                            {onNavigateToSynthesis && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-[11px] gap-1"
+                                    onClick={onNavigateToSynthesis}
+                                >
+                                    {t('input.title')}
+                                    <ArrowRight className="w-3 h-3" />
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <>
                             {tasks.map(task => (
-                                <Card 
-                                    key={task.id} 
-                                    className={`transition-all duration-150 hover:shadow-sm ${
-                                        task.status === 'error' ? 'border-destructive' : 
-                                        playingTaskId === task.id ? 'border-primary' : ''
-                                    }`}
-                                >
-                                    <CardContent className="p-2.5">
-                                        <div 
-                                            className="flex items-start justify-between gap-2 cursor-pointer" 
-                                            onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                        >
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">
-                                                    {expandedTaskId === task.id ? task.text : (task.text.slice(0, 80) + (task.text.length > 80 ? '...' : ''))}
-                                                </p>
-                                                <div className="flex gap-1.5 mt-1.5">
-                                                    <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                                                        {task.voice}
-                                                    </Badge>
-                                                    {task.style && (
-                                                        <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                                            {task.style.slice(0, 10)}
-                                                        </Badge>
-                                                    )}
-                                                    <span className="text-[10px] text-muted-foreground">
-                                                        {new Date(task.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                {task.status === 'synthesizing' && (
-                                                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                                )}
-                                                {task.status === 'error' && (
-                                                    <span className="text-[10px] text-destructive max-w-[80px] truncate">
-                                                        {task.error}
-                                                    </span>
-                                                )}
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                                    onClick={e => { e.stopPropagation(); onDelete(task.id) }}
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        {expandedTaskId === task.id && task.status === 'completed' && task.audioBlob && (
-                                            <div className="mt-2 pt-2 border-t" onClick={e => e.stopPropagation()}>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="icon" 
-                                                        className="h-7 w-7"
-                                                        onClick={() => playingTaskId === task.id ? onTogglePlay() : onPlay(task)}
-                                                    >
-                                                        {playingTaskId === task.id && isPlaying ? (
-                                                            <Pause className="w-3 h-3" />
-                                                        ) : (
-                                                            <Play className="w-3 h-3" />
-                                                        )}
-                                                    </Button>
-                                                    {playingTaskId === task.id && (
-                                                        <>
-                                                            <Button 
-                                                                variant="outline" 
-                                                                size="icon" 
-                                                                className="h-7 w-7"
-                                                                onClick={onStop}
-                                                            >
-                                                                <Square className="w-3 h-3" />
-                                                            </Button>
-                                                            <div className="flex-1 flex items-center gap-1.5">
-                                                                <span className="text-[10px] text-muted-foreground tabular-nums w-10">
-                                                                    {formatTime(currentTime)}
-                                                                </span>
-                                                                <input 
-                                                                    type="range" 
-                                                                    className="flex-1 h-1 bg-muted rounded-full appearance-none cursor-pointer"
-                                                                    min={0} 
-                                                                    max={duration || 0} 
-                                                                    step={0.1} 
-                                                                    value={currentTime} 
-                                                                    onChange={onSeek} 
-                                                                />
-                                                                <span className="text-[10px] text-muted-foreground tabular-nums w-10">
-                                                                    {formatTime(duration)}
-                                                                </span>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="icon" 
-                                                        className="h-7 w-7"
-                                                        onClick={() => onDownload(task)}
-                                                    >
-                                                        <Download className="w-3 h-3" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
+                                <HistoryTaskItem
+                                    key={task.id}
+                                    task={task}
+                                    isExpanded={expandedTaskId === task.id}
+                                    isActive={activeTaskId === task.id}
+                                    onExpand={handleExpand}
+                                    onCollapse={handleCollapse}
+                                    onDelete={onDelete}
+                                />
                             ))}
                             {historyTotal > historyPageSize && (
                                 <Pagination
@@ -197,6 +165,6 @@ export default function HistoryPanel({
                     )}
                 </div>
             </ScrollArea>
-        </Card>
+        </div>
     )
 }
