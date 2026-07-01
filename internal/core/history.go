@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+// maxHistoryRecords caps how many synthesis records (including audio blobs) are
+// retained. Older records beyond this count are pruned on each save to keep the
+// SQLite database from growing without bound.
+const maxHistoryRecords = 200
+
 type HistoryItem struct {
 	ID        uint      `json:"id"`
 	Text      string    `json:"text"`
@@ -29,7 +34,26 @@ func (s *Service) SaveHistory(text, model, voice, style, format string, audioDat
 		Format:    format,
 		CreatedAt: time.Now(),
 	}
-	return s.db.Create(&rec).Error
+	if err := s.db.Create(&rec).Error; err != nil {
+		return err
+	}
+	// Best-effort prune; a failure here should not fail the save.
+	if err := s.pruneHistory(maxHistoryRecords); err != nil {
+		s.emitLog("[History] prune failed: %v", err)
+	}
+	return nil
+}
+
+// pruneHistory deletes all but the newest `keep` records.
+func (s *Service) pruneHistory(keep int) error {
+	if s.db == nil || keep <= 0 {
+		return nil
+	}
+	survivors := s.db.Model(&HistoryRecord{}).
+		Select("id").
+		Order("created_at DESC").
+		Limit(keep)
+	return s.db.Where("id NOT IN (?)", survivors).Delete(&HistoryRecord{}).Error
 }
 
 func (s *Service) GetHistory(limit int) ([]HistoryItem, error) {
