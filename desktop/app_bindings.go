@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"mimo-tts-client/internal/core"
@@ -77,15 +78,21 @@ func (a *App) StartSynthesizeSpeechStream(req StreamTTSRequest) error {
 
 	eventName := "tts:stream:" + req.StreamID
 
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.registerStream(req.StreamID, cancel)
+
 	go func() {
-		err := a.service.SynthesizeSpeechStream(a.ctx, req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
+		defer a.unregisterStream(req.StreamID)
+
+		err := a.service.SynthesizeSpeechStream(ctx, req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
 			wailsRuntime.EventsEmit(a.ctx, eventName, StreamChunk{
 				Data: base64.StdEncoding.EncodeToString(chunk),
 			})
 			return nil
 		})
 
-		if err != nil {
+		// A cancelled stream is a user action, not an error: emit a clean done.
+		if err != nil && ctx.Err() == nil {
 			wailsRuntime.EventsEmit(a.ctx, eventName, StreamChunk{
 				Error: err.Error(),
 				Done:  true,

@@ -33,6 +33,7 @@ declare global {
             style: string
             optimizeTextPreview: boolean
           }): Promise<void>
+          CancelStream(streamId: string): Promise<void>
           GetHistory(): Promise<HistoryItem[]>
           SearchHistory(query: string, offset: number, limit: number): Promise<{items: HistoryItem[]; total: number; offset: number; limit: number}>
           SaveHistory(req: {
@@ -117,6 +118,7 @@ async function* synthesizeSpeechStreamDesktop(
   voice: string,
   style: string,
   optimizeTextPreview?: boolean,
+  signal?: AbortSignal,
 ): AsyncGenerator<Uint8Array, void, unknown> {
   const desktop = getDesktop()
   if (!desktop) {
@@ -184,8 +186,21 @@ async function* synthesizeSpeechStreamDesktop(
     }
   })
 
+  const onAbort = () => {
+    void desktop.CancelStream?.(streamId)
+  }
+
   try {
     await desktop.StartSynthesizeSpeechStream({streamId, text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false})
+
+    // Once the stream is registered on the backend, wire cancellation.
+    if (signal) {
+      if (signal.aborted) {
+        onAbort()
+      } else {
+        signal.addEventListener('abort', onAbort)
+      }
+    }
 
     while (true) {
       const nextChunk = queue.length > 0
@@ -203,6 +218,7 @@ async function* synthesizeSpeechStreamDesktop(
       throw streamError
     }
   } finally {
+    signal?.removeEventListener('abort', onAbort)
     unsubscribe()
   }
 }
@@ -325,7 +341,7 @@ export async function* SynthesizeSpeechStream(
 ): AsyncGenerator<Uint8Array, void, unknown> {
   const desktop = getDesktop()
   if (desktop) {
-    yield* synthesizeSpeechStreamDesktop(text, model, voice, style, optimizeTextPreview)
+    yield* synthesizeSpeechStreamDesktop(text, model, voice, style, optimizeTextPreview, signal)
     return
   }
 
