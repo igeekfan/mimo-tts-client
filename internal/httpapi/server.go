@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"mimo-tts-client/internal/core"
 )
@@ -227,11 +228,12 @@ func (s *Server) handleHistorySearch(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 
 	offset := 0
+	if v, err := strconv.Atoi(offsetStr); err == nil && v >= 0 {
+		offset = v
+	}
 	limit := 20
-	fmt.Sscanf(offsetStr, "%d", &offset)
-	fmt.Sscanf(limitStr, "%d", &limit)
-	if limit <= 0 || limit > 100 {
-		limit = 20
+	if v, err := strconv.Atoi(limitStr); err == nil && v > 0 && v <= 100 {
+		limit = v
 	}
 
 	items, total, err := s.service.SearchHistory(query, offset, limit)
@@ -259,9 +261,12 @@ func (s *Server) handleHistoryAudio(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing id", http.StatusBadRequest)
 		return
 	}
-	var id uint
-	fmt.Sscanf(idStr, "%d", &id)
-	audioData, format, err := s.service.GetHistoryAudio(id)
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		http.Error(w, "Invalid id", http.StatusBadRequest)
+		return
+	}
+	audioData, format, err := s.service.GetHistoryAudio(uint(id))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
