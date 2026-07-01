@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -106,11 +107,13 @@ func TestSynthesizeSpeech(t *testing.T) {
 }
 
 func TestSynthesizeSpeechIntegration(t *testing.T) {
-	s := &Service{
-		apiKey: os.Getenv("TTS_API_KEY"),
+	apiKey := os.Getenv("TTS_API_KEY")
+	if apiKey == "" {
+		t.Skip("TTS_API_KEY not set")
 	}
+	s := &Service{apiKey: apiKey}
 
-	audioData, format, err := s.SynthesizeSpeech("你好世界", "mimo-v2.5-tts", "mimo_default", "", false)
+	audioData, format, err := s.SynthesizeSpeech(context.Background(), "你好世界", "mimo-v2.5-tts", "mimo_default", "", false)
 	if err != nil {
 		t.Fatalf("SynthesizeSpeech: %v", err)
 	}

@@ -52,7 +52,7 @@ func (a *App) CheckForUpdate() (UpdateInfo, error) {
 }
 
 func (a *App) SynthesizeSpeech(req TTSRequest) (TTSResponse, error) {
-	audioData, format, err := a.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
+	audioData, format, err := a.service.SynthesizeSpeech(a.ctx, req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
 	if err != nil {
 		return TTSResponse{
 			AudioData: "",
@@ -78,7 +78,7 @@ func (a *App) StartSynthesizeSpeechStream(req StreamTTSRequest) error {
 	eventName := "tts:stream:" + req.StreamID
 
 	go func() {
-		err := a.service.SynthesizeSpeechStream(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
+		err := a.service.SynthesizeSpeechStream(a.ctx, req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
 			wailsRuntime.EventsEmit(a.ctx, eventName, StreamChunk{
 				Data: base64.StdEncoding.EncodeToString(chunk),
 			})

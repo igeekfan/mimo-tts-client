@@ -3,6 +3,7 @@ package core
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -114,7 +115,7 @@ func (s *Service) getApiConfig() (apiKey, baseUrl string, err error) {
 	return apiKey, baseUrl, nil
 }
 
-func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTextPreview bool) ([]byte, string, error) {
+func (s *Service) SynthesizeSpeech(ctx context.Context, text, model, voice, style string, optimizeTextPreview bool) ([]byte, string, error) {
 	apiKey, baseUrl, err := s.getApiConfig()
 	if err != nil {
 		return nil, "", err
@@ -151,7 +152,7 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 	s.emitLog("[TTS] 请求: model=%s, voice=%s, format=wav, textLen=%d", model, truncateForLog(voice, 30), len(text))
 
 	url := baseUrl + "/chat/completions"
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, "", fmt.Errorf("创建请求失败: %w", err)
 	}
@@ -208,7 +209,7 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 
 type StreamChunkCallback func(chunk []byte) error
 
-func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optimizeTextPreview bool, callback StreamChunkCallback) error {
+func (s *Service) SynthesizeSpeechStream(ctx context.Context, text, model, voice, style string, optimizeTextPreview bool, callback StreamChunkCallback) error {
 	apiKey, baseUrl, err := s.getApiConfig()
 	if err != nil {
 		return err
@@ -245,7 +246,7 @@ func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optim
 	s.emitLog("[TTS Stream] 请求: model=%s, voice=%s, format=pcm16, textLen=%d", model, truncateForLog(voice, 30), len(text))
 
 	url := baseUrl + "/chat/completions"
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("创建请求失败: %w", err)
 	}

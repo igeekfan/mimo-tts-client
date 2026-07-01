@@ -98,7 +98,7 @@ func (s *Server) handleSynthesize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	audioData, format, err := s.service.SynthesizeSpeech(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
+	audioData, format, err := s.service.SynthesizeSpeech(r.Context(), req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
@@ -157,12 +157,21 @@ func (s *Server) handleSynthesizeStream(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err := s.service.SynthesizeSpeechStream(req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
+	err := s.service.SynthesizeSpeechStream(r.Context(), req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
+		// Stop writing if the client has disconnected.
+		if r.Context().Err() != nil {
+			return r.Context().Err()
+		}
 		data := base64.StdEncoding.EncodeToString(chunk)
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flusher.Flush()
 		return nil
 	})
+
+	// If the client disconnected, there is nothing left to write to.
+	if r.Context().Err() != nil {
+		return
+	}
 
 	if err != nil {
 		fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
