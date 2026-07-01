@@ -40,21 +40,25 @@ func (h *EventHub) Unsubscribe(ch chan eventMessage) {
 }
 
 func (h *EventHub) Emit(name string, data any) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	msg := eventMessage{Name: name, Data: data}
+	// Use the write lock so the drop-oldest-then-send sequence below is atomic
+	// across concurrent Emit calls, and so delivery never races Unsubscribe
+	// closing a channel.
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	for ch := range h.subscribers {
 		select {
-		case ch <- eventMessage{Name: name, Data: data}:
+		case ch <- msg:
 		default:
-			// Channel full — drain one stale message and resend.
-			// This ensures progress updates are not silently lost,
-			// which would cause the frontend progress bar to stall.
+			// Subscriber is slow and its buffer is full — drop the oldest
+			// queued message to make room for the newest, so the client keeps
+			// receiving current updates instead of stalling on stale ones.
 			select {
 			case <-ch:
 			default:
 			}
 			select {
-			case ch <- eventMessage{Name: name, Data: data}:
+			case ch <- msg:
 			default:
 			}
 		}
