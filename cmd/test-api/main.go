@@ -62,23 +62,23 @@ func main() {
 	// 打印响应结构（隐藏音频数据）
 	var result map[string]interface{}
 	json.Unmarshal(body, &result)
-	
+
 	if choices, ok := result["choices"].([]interface{}); ok && len(choices) > 0 {
 		choice := choices[0].(map[string]interface{})
 		if message, ok := choice["message"].(map[string]interface{}); ok {
 			if audio, ok := message["audio"].(map[string]interface{}); ok {
 				if data, ok := audio["data"].(string); ok {
 					fmt.Printf("音频数据长度: %d chars\n", len(data))
-					
+
 					decoded, err := base64.StdEncoding.DecodeString(data)
 					if err != nil {
 						fmt.Printf("Base64 解码失败: %v\n", err)
 						os.Exit(1)
 					}
-					
+
 					fmt.Printf("解码后音频: %d bytes\n", len(decoded))
 					fmt.Printf("前16字节: %x\n", decoded[:min(16, len(decoded))])
-					
+
 					// 检查是否是 WAV 格式 (RIFF header)
 					if len(decoded) >= 4 && string(decoded[:4]) == "RIFF" {
 						fmt.Println("格式: WAV (RIFF)")
@@ -86,7 +86,7 @@ func main() {
 						fmt.Println("格式: 原始 PCM 数据")
 						fmt.Println("注意: 浏览器 Audio 对象需要 WAV 格式，需要添加 WAV header")
 					}
-					
+
 					err = os.WriteFile("test_output.wav", decoded, 0644)
 					if err != nil {
 						fmt.Printf("写入文件失败: %v\n", err)

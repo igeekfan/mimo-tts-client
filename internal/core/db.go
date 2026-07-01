@@ -11,7 +11,7 @@ import (
 )
 
 type SettingsRecord struct {
-	ID           uint   `gorm:"primaryKey"`
+	ID           uint `gorm:"primaryKey"`
 	Language     string
 	Theme        string
 	ApiKey       string
@@ -23,8 +23,8 @@ type SettingsRecord struct {
 }
 
 type HistoryRecord struct {
-	ID        uint      `gorm:"primaryKey"`
-	Text      string    `gorm:"type:text"`
+	ID        uint   `gorm:"primaryKey"`
+	Text      string `gorm:"type:text"`
 	Model     string
 	Voice     string
 	Style     string

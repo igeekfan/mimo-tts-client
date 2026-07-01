@@ -21,9 +21,9 @@ func main() {
 	app := desktop.NewApp(currentAppVersion())
 
 	err := wails.Run(&options.App{
-		Title:  "MiMo TTS Client",
-		Width:  960,
-		Height: 700,
+		Title:     "MiMo TTS Client",
+		Width:     960,
+		Height:    700,
 		MinWidth:  720,
 		MinHeight: 520,
 		AssetServer: &assetserver.Options{

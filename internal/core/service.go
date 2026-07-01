@@ -14,12 +14,12 @@ type Hooks struct {
 }
 
 type Service struct {
-	i18n         *I18n
-	mu           sync.RWMutex
-	db           *gorm.DB
-	appVersion   string
-	hooks        Hooks
-	apiKey       string // from TTS_API_KEY env
+	i18n       *I18n
+	mu         sync.RWMutex
+	db         *gorm.DB
+	appVersion string
+	hooks      Hooks
+	apiKey     string // from TTS_API_KEY env
 }
 
 func NewService(appVersion string) *Service {
