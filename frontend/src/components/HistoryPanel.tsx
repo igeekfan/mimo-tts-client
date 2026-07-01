@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useEffect} from 'react'
+import {useCallback, useMemo, useEffect, memo} from 'react'
 import {useI18n} from '../i18n/context'
 import {SynthesisTask} from '../types'
 import {isLoadingAudio as checkIsLoadingAudio} from '../lib/audioUtils'
@@ -36,7 +36,7 @@ interface HistoryPanelProps {
     onNavigateToSynthesis?: () => void
 }
 
-export default function HistoryPanel({
+function HistoryPanel({
     tasks, historyTotal, historyPage, historyPageSize,
     historySearch, onHistorySearch, onPageChange,
     expandedTaskId, setExpandedTaskId,
@@ -168,3 +168,5 @@ export default function HistoryPanel({
         </div>
     )
 }
+
+export default memo(HistoryPanel)

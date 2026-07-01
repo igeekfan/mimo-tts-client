@@ -19,6 +19,9 @@ export function useSynthesis(
     const synthesizeAbortRef = useRef<AbortController | null>(null)
     const audioContextRef = useRef<AudioContext | null>(null)
     const currentTaskIdRef = useRef<string | null>(null)
+    // 流式暂停状态用 ref 保存，供正在运行的 for-await 循环读取到最新值
+    // （闭包捕获的 isStreamPaused 会永远是启动时的快照 false）
+    const isStreamPausedRef = useRef(false)
 
     const synthesize = useCallback(async (
         text: string,
@@ -88,6 +91,7 @@ export function useSynthesis(
         addTask(newTask)
         setIsStreaming(true)
         setIsStreamPaused(false)
+        isStreamPausedRef.current = false
         currentTaskIdRef.current = taskId
         const abortController = new AbortController()
         streamAbortRef.current = abortController
@@ -102,7 +106,7 @@ export function useSynthesis(
 
             for await (const chunk of SynthesizeSpeechStream(text, model, voice, style, optimizeTextPreview, abortController.signal)) {
                 if (abortController.signal.aborted) break
-                while (isStreamPaused && !abortController.signal.aborted) await new Promise(resolve => setTimeout(resolve, 100))
+                while (isStreamPausedRef.current && !abortController.signal.aborted) await new Promise(resolve => setTimeout(resolve, 100))
                 if (abortController.signal.aborted) break
                 pcmChunks.push(chunk)
                 totalLength += chunk.length
@@ -153,18 +157,21 @@ export function useSynthesis(
         } finally {
             setIsStreaming(false)
             setIsStreamPaused(false)
+            isStreamPausedRef.current = false
             audioContextRef.current = null
             currentTaskIdRef.current = null
             streamAbortRef.current = null
         }
-    }, [t, addTask, updateTask, incrementTotal, isStreamPaused])
+    }, [t, addTask, updateTask, incrementTotal])
 
     const toggleStreamPause = useCallback(() => {
         if (audioContextRef.current) {
-            isStreamPaused ? audioContextRef.current.resume() : audioContextRef.current.suspend()
-            setIsStreamPaused(!isStreamPaused)
+            const next = !isStreamPausedRef.current
+            next ? audioContextRef.current.suspend() : audioContextRef.current.resume()
+            isStreamPausedRef.current = next
+            setIsStreamPaused(next)
         }
-    }, [isStreamPaused])
+    }, [])
 
     const cancelSynthesize = useCallback(() => {
         synthesizeAbortRef.current?.abort()

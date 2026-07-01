@@ -1,3 +1,4 @@
+import {useCallback} from 'react'
 import {useI18n} from './i18n/context'
 import {useLogContext} from './lib/LogContext'
 import {Button} from '@/components/ui/button'
@@ -18,6 +19,13 @@ function App({route, navigate}: AppProps) {
     const settings = useSettingsContext()
     const {logs} = useLogContext()
 
+    const {lang, setLang, theme, setTheme} = settings
+    const goHome = useCallback(() => navigate('/'), [navigate])
+    const goHistory = useCallback(() => navigate('/history'), [navigate])
+    const goLogs = useCallback(() => navigate('/logs'), [navigate])
+    const toggleLang = useCallback(() => setLang(lang === 'zh-CN' ? 'en-US' : 'zh-CN'), [lang, setLang])
+    const toggleTheme = useCallback(() => setTheme(theme === 'dark' ? 'light' : 'dark'), [theme, setTheme])
+
     return (
         <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
             <header className="flex justify-between items-center px-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shrink-0 h-10">
@@ -37,7 +45,7 @@ function App({route, navigate}: AppProps) {
                                 ? 'border-primary text-foreground'
                                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30'
                         }`}
-                        onClick={() => navigate('/')}
+                        onClick={goHome}
                     >
                         <Type className="w-3 h-3" />
                         {t('input.title')}
@@ -48,7 +56,7 @@ function App({route, navigate}: AppProps) {
                                 ? 'border-primary text-foreground'
                                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30'
                         }`}
-                        onClick={() => navigate('/history')}
+                        onClick={goHistory}
                     >
                         <History className="w-3 h-3" />
                         {t('history.title')}
@@ -75,10 +83,10 @@ function App({route, navigate}: AppProps) {
                         handleCheckUpdate={settings.checkUpdate}
                         handleOpenReleasePage={settings.openReleasePage}
                     />
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => settings.setLang(settings.lang === 'zh-CN' ? 'en-US' : 'zh-CN')}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={toggleLang}>
                         <span className="text-[10px] font-medium">{settings.lang === 'zh-CN' ? 'EN' : '中'}</span>
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground relative" onClick={() => navigate('/logs')}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground relative" onClick={goLogs}>
                         <Terminal className="w-3 h-3" />
                         {logs.length > 0 && (
                             <span className="absolute -top-0.5 -right-0.5 flex h-3 min-w-[12px] items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[7px] font-bold px-0.5">
@@ -86,7 +94,7 @@ function App({route, navigate}: AppProps) {
                             </span>
                         )}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => settings.setTheme(settings.theme === 'dark' ? 'light' : 'dark')}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={toggleTheme}>
                         {settings.theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
                     </Button>
                 </div>

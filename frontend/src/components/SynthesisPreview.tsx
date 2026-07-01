@@ -1,4 +1,4 @@
-import {useMemo, useCallback} from 'react'
+import {useMemo, useCallback, memo} from 'react'
 import {useI18n} from '../i18n/context'
 import {SynthesisTask} from '../types'
 import {formatTime, isLoadingAudio as checkIsLoadingAudio} from '../lib/audioUtils'
@@ -22,7 +22,7 @@ interface SynthesisPreviewProps {
     onLoadAudio: (taskId: string) => void
 }
 
-export default function SynthesisPreview({
+function SynthesisPreview({
     tasks, isSynthesizing, isStreaming,
     playingTaskId, isPlaying, currentTime, duration,
     onPlay, onTogglePlay, onStop, onSeek, onDownload, onLoadAudio
@@ -188,3 +188,5 @@ export default function SynthesisPreview({
         </div>
     )
 }
+
+export default memo(SynthesisPreview)

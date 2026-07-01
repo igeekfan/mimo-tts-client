@@ -127,6 +127,7 @@ export namespace desktop {
 	    voice: string;
 	    style: string;
 	    styleHistory: string[];
+	    hasApiKey?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -142,6 +143,7 @@ export namespace desktop {
 	        this.voice = source["voice"];
 	        this.style = source["style"];
 	        this.styleHistory = source["styleHistory"];
+	        this.hasApiKey = source["hasApiKey"];
 	    }
 	}
 	export class StreamTTSRequest {

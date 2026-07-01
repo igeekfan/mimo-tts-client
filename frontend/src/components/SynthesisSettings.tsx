@@ -1,4 +1,4 @@
-import {useState, useCallback} from 'react'
+import {useState, useCallback, useMemo} from 'react'
 import {useI18n} from '../i18n/context'
 import {ModelType} from '../types'
 import {PRESET_VOICES, VOICE_DESIGN_EXAMPLES, STYLE_PRESETS, DIRECTOR_MODE_EXAMPLES} from '../lib/constants'
@@ -87,6 +87,18 @@ export default function SynthesisSettings({
         setCloneFileName('')
         setCloneError('')
     }, [setVoice])
+
+    // 预置风格按分类分组，仅在 model / 语言变化时重算
+    const styleGroups = useMemo(() => {
+        const filtered = STYLE_PRESETS.filter(s => !s.ttsOnly || model === 'mimo-v2.5-tts')
+        const groups: Record<string, typeof filtered> = {}
+        filtered.forEach(s => { const cat = s.category || 'other'; if (!groups[cat]) groups[cat] = []; groups[cat].push(s) })
+        const categoryLabels: Record<string, string> = {
+            emotion: t('tags.emotion'), compound: t('tags.compound'), tone: t('tags.tone'),
+            voice: t('voice'), persona: t('tags.persona'), dialect: t('tags.dialect'), other: t('tags.other'),
+        }
+        return Object.entries(groups).map(([cat, items]) => ({cat, label: categoryLabels[cat] || cat, items}))
+    }, [model, t])
 
     return (
         <ScrollArea className="h-full">
@@ -272,36 +284,27 @@ export default function SynthesisSettings({
                                         {t('common.quickSelect')}
                                     </CollapsibleTrigger>
                                     <CollapsibleContent className="pt-1.5 space-y-1.5">
-                                        {(() => {
-                                            const filtered = STYLE_PRESETS.filter(s => !s.ttsOnly || model === 'mimo-v2.5-tts')
-                                            const groups: Record<string, typeof filtered> = {}
-                                            filtered.forEach(s => { const cat = s.category || 'other'; if (!groups[cat]) groups[cat] = []; groups[cat].push(s) })
-                                            const categoryLabels: Record<string, string> = {
-                                                emotion: t('tags.emotion'), compound: t('tags.compound'), tone: t('tags.tone'),
-                                                voice: t('voice'), persona: t('tags.persona'), dialect: t('tags.dialect'), other: t('tags.other'),
-                                            }
-                                            return Object.entries(groups).map(([cat, items]) => (
-                                                <div key={cat} className="space-y-0.5">
-                                                    <p className="text-[9px] text-muted-foreground/50 font-medium">{categoryLabels[cat] || cat}</p>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {items.map(s => (
-                                                            <Badge
-                                                                key={s.value}
-                                                                variant={style === s.value ? 'default' : 'outline'}
-                                                                className={`cursor-pointer text-[10px] px-1.5 py-0 transition-colors ${
-                                                                    style === s.value
-                                                                        ? 'hover:bg-primary/80'
-                                                                        : 'hover:bg-accent hover:text-accent-foreground'
-                                                                }`}
-                                                                onClick={() => setStyle(style === s.value ? '' : s.value)}
-                                                            >
-                                                                {s.label}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
+                                        {styleGroups.map(({cat, label, items}) => (
+                                            <div key={cat} className="space-y-0.5">
+                                                <p className="text-[9px] text-muted-foreground/50 font-medium">{label}</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {items.map(s => (
+                                                        <Badge
+                                                            key={s.value}
+                                                            variant={style === s.value ? 'default' : 'outline'}
+                                                            className={`cursor-pointer text-[10px] px-1.5 py-0 transition-colors ${
+                                                                style === s.value
+                                                                    ? 'hover:bg-primary/80'
+                                                                    : 'hover:bg-accent hover:text-accent-foreground'
+                                                            }`}
+                                                            onClick={() => setStyle(style === s.value ? '' : s.value)}
+                                                        >
+                                                            {s.label}
+                                                        </Badge>
+                                                    ))}
                                                 </div>
-                                            ))
-                                        })()}
+                                            </div>
+                                        ))}
                                     </CollapsibleContent>
                                 </Collapsible>
                                 {styleHistory.length > 0 && (

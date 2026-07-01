@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {useMemo} from 'react'
 import {createRoot} from 'react-dom/client'
 import './styles/globals.css'
 import App from './App'
@@ -15,8 +15,9 @@ import {initWebAuth} from './lib/webAuth'
 
 function LogProvider({children}: {children: React.ReactNode}) {
     const {logs, setLogs, clearLogs} = useLogs()
+    const value = useMemo(() => ({logs, setLogs, clearLogs}), [logs, setLogs, clearLogs])
     return (
-        <LogContext.Provider value={{logs, setLogs, clearLogs}}>
+        <LogContext.Provider value={value}>
             {children}
         </LogContext.Provider>
     )

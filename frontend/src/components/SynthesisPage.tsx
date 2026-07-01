@@ -1,4 +1,4 @@
-import {useState, useRef, useCallback, useEffect} from 'react'
+import {useState, useRef, useCallback, useEffect, useMemo} from 'react'
 import TextInput from './TextInput'
 import SynthesisSettings from './SynthesisSettings'
 import SynthesisPreview from './SynthesisPreview'
@@ -23,7 +23,7 @@ export default function SynthesisPage() {
     const history = useHistoryContext()
     const audioPlayer = useAudioPlayerContext()
     const {download} = useDownload()
-    const previewTasks = selectSynthesisPreviewTasks(history.tasks)
+    const previewTasks = useMemo(() => selectSynthesisPreviewTasks(history.tasks), [history.tasks])
 
     const synthesis = useSynthesis(
         history.addTask,
