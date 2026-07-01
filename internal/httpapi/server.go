@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"mimo-tts-client/internal/core"
 )
@@ -15,20 +17,23 @@ type Server struct {
 	mux        *http.ServeMux
 	hub        *EventHub
 	corsOrigin string
+	authToken  string
 }
 
-func NewServer(service *core.Service, corsOrigin string) *Server {
+func NewServer(service *core.Service, corsOrigin, authToken string) *Server {
 	s := &Server{
 		service:    service,
 		mux:        http.NewServeMux(),
 		hub:        NewEventHub(),
 		corsOrigin: corsOrigin,
+		authToken:  authToken,
 	}
 	s.registerRoutes()
 	return s
 }
 
 func (s *Server) registerRoutes() {
+	s.mux.HandleFunc("/api/config", s.handleConfig)
 	s.mux.HandleFunc("/api/settings", s.handleSettings)
 	s.mux.HandleFunc("/api/synthesize", s.handleSynthesize)
 	s.mux.HandleFunc("/api/synthesize-stream", s.handleSynthesizeStream)
@@ -64,7 +69,40 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if !s.authorized(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	s.mux.ServeHTTP(w, r)
+}
+
+// authorized reports whether the request may proceed. When no token is
+// configured, everything is allowed. /api/config is always public so the
+// client can discover that a token is required. The token may be supplied via
+// the Authorization: Bearer header (fetch) or a token query param (EventSource,
+// which cannot set headers).
+func (s *Server) authorized(r *http.Request) bool {
+	if s.authToken == "" || r.URL.Path == "/api/config" {
+		return true
+	}
+	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+		if tokenEqual(strings.TrimPrefix(h, "Bearer "), s.authToken) {
+			return true
+		}
+	}
+	if t := r.URL.Query().Get("token"); tokenEqual(t, s.authToken) {
+		return true
+	}
+	return false
+}
+
+func tokenEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"authRequired": s.authToken != ""})
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {

@@ -1,5 +1,20 @@
 import {SynthesisTask, ModelType, HistoryItem, UpdateInfo, AboutInfo} from '../types'
 import {EventsOn} from './runtime'
+import {authHeaders, setToken} from './webAuth'
+
+// webFetch wraps fetch for web mode: it attaches the Authorization header when
+// a token is stored and clears the token on 401 so a reload re-prompts.
+async function webFetch(input: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(input, {
+    ...init,
+    headers: authHeaders(init?.headers as Record<string, string> | undefined),
+  })
+  if (res.status === 401) {
+    setToken(null)
+    throw new Error('Unauthorized')
+  }
+  return res
+}
 
 declare global {
   interface Window {
@@ -258,7 +273,7 @@ export async function SynthesizeSpeech(
   if (desktop) {
     return await desktop.SynthesizeSpeech({text, model, voice, style, outputDir: '', optimizeTextPreview: optimizeTextPreview || false})
   }
-  const res = await fetch('/api/synthesize', {
+  const res = await webFetch('/api/synthesize', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false}),
@@ -276,7 +291,7 @@ export async function GetSettings(): Promise<{language: string; theme: string; a
   if (desktop) {
     return await desktop.GetSettings()
   }
-  const res = await fetch('/api/settings')
+  const res = await webFetch('/api/settings')
   return await res.json()
 }
 
@@ -285,7 +300,7 @@ export async function SaveSettings(settings: {language: string; theme: string; a
   if (desktop) {
     return await desktop.SaveSettings(settings)
   }
-  await fetch('/api/settings', {
+  await webFetch('/api/settings', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(settings),
@@ -299,7 +314,7 @@ export async function GetAboutInfo(): Promise<AboutInfo> {
   if (desktop) {
     return await desktop.GetAboutInfo()
   }
-  const res = await fetch('/api/about')
+  const res = await webFetch('/api/about')
   return await res.json()
 }
 
@@ -308,7 +323,7 @@ export async function CheckForUpdate(): Promise<UpdateInfo> {
   if (desktop) {
     return await desktop.CheckForUpdate()
   }
-  const res = await fetch('/api/update')
+  const res = await webFetch('/api/update')
   if (!res.ok) throw new Error('Failed to check for updates')
   return await res.json()
 }
@@ -318,7 +333,7 @@ export async function GetCurrentVersion(): Promise<string> {
   if (desktop) {
     return await desktop.GetCurrentVersion()
   }
-  const res = await fetch('/api/version')
+  const res = await webFetch('/api/version')
   const data = await res.json()
   return data.version
 }
@@ -345,7 +360,7 @@ export async function* SynthesizeSpeechStream(
     return
   }
 
-  const res = await fetch('/api/synthesize-stream', {
+  const res = await webFetch('/api/synthesize-stream', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({text, model, voice, style, optimizeTextPreview: optimizeTextPreview || false}),
@@ -425,7 +440,7 @@ export async function GetHistory(): Promise<HistoryItem[]> {
   if (desktop) {
     return await desktop.GetHistory()
   }
-  const res = await fetch('/api/history')
+  const res = await webFetch('/api/history')
   return await res.json()
 }
 
@@ -435,7 +450,7 @@ export async function SearchHistory(query: string, offset: number, limit: number
     return await desktop.SearchHistory(query, offset, limit)
   }
   const params = new URLSearchParams({q: query, offset: String(offset), limit: String(limit)})
-  const res = await fetch(`/api/history/search?${params}`)
+  const res = await webFetch(`/api/history/search?${params}`)
   return await res.json()
 }
 
@@ -454,7 +469,7 @@ export async function SaveToHistory(
     return await desktop.SaveHistory({text, model, voice, style, audioData: encodedAudio, format})
   }
 
-  await fetch('/api/history', {
+  await webFetch('/api/history', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({text, model, voice, style, audioData: encodedAudio, format}),
@@ -468,7 +483,7 @@ export async function GetHistoryAudio(id: number): Promise<Blob> {
     return decodeBase64ToBlob(result.audioData, result.format)
   }
 
-  const res = await fetch(`/api/history/audio?id=${id}`)
+  const res = await webFetch(`/api/history/audio?id=${id}`)
   return await res.blob()
 }
 
@@ -478,7 +493,7 @@ export async function DeleteHistory(id: number): Promise<void> {
     return await desktop.DeleteHistory(id)
   }
 
-  await fetch('/api/history/delete', {
+  await webFetch('/api/history/delete', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({id}),
@@ -491,5 +506,5 @@ export async function ClearHistory(): Promise<void> {
     return await desktop.ClearHistory()
   }
 
-  await fetch('/api/history/clear', {method: 'POST'})
+  await webFetch('/api/history/clear', {method: 'POST'})
 }

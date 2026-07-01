@@ -1,4 +1,5 @@
 import {EventsOn as DesktopEventsOn} from '../../wailsjs/runtime/runtime'
+import {getToken} from './webAuth'
 
 const isDesktop = typeof window !== 'undefined' && typeof (window as any).go?.desktop?.App !== 'undefined'
 
@@ -10,7 +11,10 @@ const webListeners = new Map<string, Set<Listener>>()
 function ensureWebEventSource() {
     if (isDesktop || webEventSource) return
 
-    webEventSource = new EventSource('/api/events')
+    // EventSource cannot set headers, so pass the token as a query param.
+    const token = getToken()
+    const eventsURL = token ? `/api/events?token=${encodeURIComponent(token)}` : '/api/events'
+    webEventSource = new EventSource(eventsURL)
     for (const [eventName] of webListeners) {
         attachWebListener(eventName)
     }

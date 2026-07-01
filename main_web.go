@@ -17,7 +17,7 @@ import (
 func main() {
 	platform.EnableUTF8Console()
 	service := core.NewService(currentAppVersion())
-	apiServer := httpapi.NewServer(service, os.Getenv("TTS_CORS_ORIGIN"))
+	apiServer := httpapi.NewServer(service, os.Getenv("TTS_CORS_ORIGIN"), os.Getenv("TTS_WEB_TOKEN"))
 	service.SetHooks(core.Hooks{
 		AppLog: func(msg string) {
 			log.Println(msg)

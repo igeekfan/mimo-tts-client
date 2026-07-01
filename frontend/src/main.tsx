@@ -11,6 +11,7 @@ import {useLogs} from './hooks/useLogs'
 import {useRouter} from './hooks/useRouter'
 import {Toaster} from '@/components/ui/sonner'
 import {TooltipProvider} from '@/components/ui/tooltip'
+import {initWebAuth} from './lib/webAuth'
 
 function LogProvider({children}: {children: React.ReactNode}) {
     const {logs, setLogs, clearLogs} = useLogs()
@@ -32,25 +33,31 @@ function Router() {
 const container = document.getElementById('root')
 const root = createRoot(container!)
 
-root.render(
-    <React.StrictMode>
-        <I18nProvider>
-            <TooltipProvider>
-                <LogProvider>
-                    <SettingsProvider>
-                        <HistoryProvider>
-                            <AudioPlayerProvider>
-                                <InputProvider>
-                                    <ErrorBoundary>
-                                        <Router />
-                                    </ErrorBoundary>
-                                </InputProvider>
-                            </AudioPlayerProvider>
-                        </HistoryProvider>
-                    </SettingsProvider>
-                </LogProvider>
-            </TooltipProvider>
-            <Toaster position="bottom-center" />
-        </I18nProvider>
-    </React.StrictMode>
-)
+function render() {
+    root.render(
+        <React.StrictMode>
+            <I18nProvider>
+                <TooltipProvider>
+                    <LogProvider>
+                        <SettingsProvider>
+                            <HistoryProvider>
+                                <AudioPlayerProvider>
+                                    <InputProvider>
+                                        <ErrorBoundary>
+                                            <Router />
+                                        </ErrorBoundary>
+                                    </InputProvider>
+                                </AudioPlayerProvider>
+                            </HistoryProvider>
+                        </SettingsProvider>
+                    </LogProvider>
+                </TooltipProvider>
+                <Toaster position="bottom-center" />
+            </I18nProvider>
+        </React.StrictMode>
+    )
+}
+
+// Resolve web auth (no-op on desktop / when no token is required) before the
+// app issues its first API calls, then render.
+initWebAuth().finally(render)
