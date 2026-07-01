@@ -11,6 +11,7 @@ type Settings struct {
 	Voice        string   `json:"voice"`
 	Style        string   `json:"style"`
 	StyleHistory []string `json:"styleHistory"`
+	HasApiKey    bool     `json:"hasApiKey,omitempty"`
 }
 
 type TTSRequest struct {

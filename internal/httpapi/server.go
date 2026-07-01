@@ -71,12 +71,21 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		settings := s.service.GetSettings()
+		// Never expose the API key over the web API; report only whether one
+		// is configured so the UI can show its status.
+		settings.HasApiKey = settings.ApiKey != ""
+		settings.ApiKey = ""
 		json.NewEncoder(w).Encode(settings)
 	case "POST":
 		var settings core.Settings
 		if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		// A blank key means "unchanged": keep the stored key so saving other
+		// settings from the web UI does not wipe it.
+		if settings.ApiKey == "" {
+			settings.ApiKey = s.service.GetSettings().ApiKey
 		}
 		if err := s.service.SaveSettings(settings); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

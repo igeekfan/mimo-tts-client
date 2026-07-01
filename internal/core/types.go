@@ -9,6 +9,9 @@ type Settings struct {
 	Voice        string   `json:"voice"`
 	Style        string   `json:"style"`
 	StyleHistory []string `json:"styleHistory"`
+	// HasApiKey is a read-only flag set by the web API to indicate a key is
+	// configured without exposing it. It is never persisted.
+	HasApiKey bool `json:"hasApiKey,omitempty"`
 }
 
 type UpdateInfo struct {

@@ -33,6 +33,8 @@ export interface Settings {
   voice: string
   style: string
   styleHistory: string[]
+  // Set by the web API to indicate a key is configured without exposing it.
+  hasApiKey?: boolean
 }
 
 export interface AboutInfo {
