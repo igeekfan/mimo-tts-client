@@ -62,14 +62,19 @@ Both modes share the same core business logic in `internal/core/`.
 │       └── hidecmd.go   # Windows CMD window hiding
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx           # Main application component
-│   │   ├── App.css           # All styles (single CSS file)
+│   │   ├── App.tsx           # Root component, composes pages
+│   │   ├── main.tsx          # Entry point (bootstraps web auth, then renders)
 │   │   ├── types.ts          # TypeScript type definitions
+│   │   ├── components/       # UI: SynthesisPage, HistoryPage, SettingsDialog,
+│   │   │   │                 #     AudioPlayer, LogPage, ErrorBoundary, ...
+│   │   │   └── ui/           # shadcn/ui primitives (button, dialog, select, ...)
+│   │   ├── hooks/            # useSynthesis, useSettings, useHistory, useRouter, ...
 │   │   ├── lib/
 │   │   │   ├── backend.ts    # Dual-mode API layer (Wails bind / HTTP fetch)
-│   │   │   └── runtime.ts    # Dual-mode event system
-│   │   ├── components/
-│   │   │   └── ErrorBoundary.tsx
+│   │   │   ├── runtime.ts    # Dual-mode event system (Wails events / SSE)
+│   │   │   ├── webAuth.ts    # Web-mode token auth (TTS_WEB_TOKEN)
+│   │   │   └── ...           # audioUtils, formatUtils, constants, contexts
+│   │   ├── styles/ theme.css # Styles are split across styles/, theme.css, App.css
 │   │   └── i18n/
 │   │       ├── context.tsx   # useI18n hook
 │   │       ├── zh-CN.ts      # Chinese translations
@@ -106,6 +111,22 @@ Both modes share the same core business logic in `internal/core/`.
 |---------|-------------|
 | `npm run dev` | Start Vite dev server only |
 | `npm run build` | Type-check (`tsc`) then build with Vite |
+| `npm run lint` | Type-check only (`tsc --noEmit`) |
+
+### Lint (Go)
+| Command | Description |
+|---------|-------------|
+| `gofmt -l .` | List files needing formatting |
+| `golangci-lint run` | Run Go linters (see `.golangci.yml`) |
+
+## Environment Variables
+
+| Variable | Mode | Description |
+|----------|------|-------------|
+| `TTS_API_KEY` | both | MiMo API key (fallback when not set in Settings) |
+| `TTS_WEB_ADDR` | web | Listen address (default `:8080`) |
+| `TTS_WEB_TOKEN` | web | If set, all `/api/*` require this token (Bearer header or `?token=`) |
+| `TTS_CORS_ORIGIN` | web | If set, sends CORS headers for this origin |
 
 ## Key Libraries
 

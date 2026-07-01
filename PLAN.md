@@ -50,12 +50,14 @@ Wails Bind  fetch/SSE
 │       └── hidecmd.go         # Windows CMD 窗口隐藏
 ├── frontend/
 │   └── src/
-│       ├── App.tsx            # 主组件
-│       ├── App.css            # 样式
+│       ├── App.tsx            # 根组件（组合各页面）
+│       ├── main.tsx           # 入口（先引导 Web 鉴权再渲染）
 │       ├── types.ts           # TS 类型
+│       ├── hooks/             # useSynthesis / useSettings / useHistory / ...
 │       ├── lib/
 │       │   ├── backend.ts     # 双模式 API 层
-│       │   └── runtime.ts     # 双模式事件系统
+│       │   ├── runtime.ts     # 双模式事件系统
+│       │   └── webAuth.ts     # Web 模式 token 鉴权
 │       ├── components/
 │       │   ├── ErrorBoundary.tsx
 │       │   └── ui/            # shadcn/ui 组件
@@ -133,26 +135,30 @@ API 支持在 `assistant` content 中嵌入 `[标签]` 实现细粒度控制：
 ## 待修复问题 TODO（2026-07-01 代码审查）
 
 > 按优先级排序。分析自代码静态审查，落地前建议逐条复现确认。
+>
+> **状态：以下全部已实现（2026-07-01）。** 新增环境变量 `TTS_WEB_TOKEN`、
+> `TTS_CORS_ORIGIN`（见 AGENTS.md 环境变量表）；新增 Go 单元测试与 `.golangci.yml`
+> + CI 工作流（`.github/workflows/ci.yml`）。
 
 ### P0 — 安全（Web 模式）
-- [ ] **API Key 明文泄露**：`GET /api/settings` 直接返回 `apiKey` 字段（`internal/httpapi/server.go:67`）。任何能访问 Web 服务的人都能读到密钥。应在 Web 模式下对返回的 settings 做脱敏（掩码或省略 `apiKey`），保存时保留原值。
-- [ ] **Web 模式无任何鉴权**：`/api/*`（合成、历史、设置）全部公开。Docker/远程部署时等于开放代理，会消耗用户 API 配额。至少提供可选的 token / basic auth（如 `TTS_WEB_TOKEN` 环境变量）。
-- [ ] **API Key 明文落库**：`SettingsRecord.ApiKey` 未加密存储于 `settings.db`（`internal/core/db.go:13`）。考虑加密或改为仅从环境变量读取。
+- [x] **API Key 明文泄露**：`GET /api/settings` 直接返回 `apiKey` 字段（`internal/httpapi/server.go:67`）。任何能访问 Web 服务的人都能读到密钥。应在 Web 模式下对返回的 settings 做脱敏（掩码或省略 `apiKey`），保存时保留原值。
+- [x] **Web 模式无任何鉴权**：`/api/*`（合成、历史、设置）全部公开。Docker/远程部署时等于开放代理，会消耗用户 API 配额。至少提供可选的 token / basic auth（如 `TTS_WEB_TOKEN` 环境变量）。
+- [x] **API Key 明文落库**：`SettingsRecord.ApiKey` 未加密存储于 `settings.db`（`internal/core/db.go:13`）。考虑加密或改为仅从环境变量读取。
 
 ### P1 — 可靠性与资源
-- [ ] **HTTP 客户端无超时**：`tts.go` 两处 `client := &http.Client{}`（`:144`、`:239`）无 `Timeout`，上游卡住会永久挂起。对照 `update.go:41` 已设 15s。合成请求应设置合理超时。
-- [ ] **取消/中断未透传到上游**：`tts.go` 用 `http.NewRequest` 而非 `NewRequestWithContext`。前端已加 AbortSignal（web）与取消按钮，但后端不会真正中止对 MiMo API 的请求 → 配额浪费 + goroutine/连接泄漏。`server.go:handleSynthesizeStream` 也未监听 `r.Context().Done()`。应把请求 context 一路传到 `SynthesizeSpeech(Stream)`。
-- [ ] **桌面流式合成无法取消**：`app_bindings.go:StartSynthesizeSpeechStream` 起了 goroutine 但没有停止机制，前端 desktop 分支的 AbortSignal 被忽略（`backend.ts:328`）。需要 streamId → cancel 的注册表 + `CancelStream` 绑定方法。
-- [ ] **历史音频无限增长**：音频 blob 全量存进 SQLite（`db.go:HistoryRecord.AudioData`），无条数/容量上限、无自动清理。长期使用 DB 会膨胀。增加保留上限或定期裁剪。
+- [x] **HTTP 客户端无超时**：`tts.go` 两处 `client := &http.Client{}`（`:144`、`:239`）无 `Timeout`，上游卡住会永久挂起。对照 `update.go:41` 已设 15s。合成请求应设置合理超时。
+- [x] **取消/中断未透传到上游**：`tts.go` 用 `http.NewRequest` 而非 `NewRequestWithContext`。前端已加 AbortSignal（web）与取消按钮，但后端不会真正中止对 MiMo API 的请求 → 配额浪费 + goroutine/连接泄漏。`server.go:handleSynthesizeStream` 也未监听 `r.Context().Done()`。应把请求 context 一路传到 `SynthesizeSpeech(Stream)`。
+- [x] **桌面流式合成无法取消**：`app_bindings.go:StartSynthesizeSpeechStream` 起了 goroutine 但没有停止机制，前端 desktop 分支的 AbortSignal 被忽略（`backend.ts:328`）。需要 streamId → cancel 的注册表 + `CancelStream` 绑定方法。
+- [x] **历史音频无限增长**：音频 blob 全量存进 SQLite（`db.go:HistoryRecord.AudioData`），无条数/容量上限、无自动清理。长期使用 DB 会膨胀。增加保留上限或定期裁剪。
 
 ### P2 — 一致性与健壮性
-- [ ] **后端错误信息硬编码中文**：`tts.go` 中 "API Key 未配置" "API 错误" 等（`:90`、`:159` 等）绕过了 i18n，英文界面下会露出中文。应走 `i18n` 或返回错误码由前端翻译。
-- [ ] **`fmt.Sscanf` 忽略解析错误**：`server.go` 解析 `id/offset/limit`（`:222`、`:254`）忽略返回值，非法输入会静默变成 0。改用 `strconv` 并校验。
-- [ ] **EventHub 丢消息竞争**：`events.go:Emit` 在 `RLock` 下从 channel 读取（drain）以腾位（`:42`），并发 Emit 时存在竞争且会丢最旧消息。评估是否改为每订阅者独立 goroutine 或加大缓冲/换写锁。
-- [ ] **CORS 源为空串**：Web 模式默认 `corsOrigin=""`（`main_web.go:20`），`Access-Control-Allow-Origin` 被设为空值。明确策略（同源不设该头，或改为可配置）。
+- [x] **后端错误信息硬编码中文**：`tts.go` 中 "API Key 未配置" "API 错误" 等（`:90`、`:159` 等）绕过了 i18n，英文界面下会露出中文。应走 `i18n` 或返回错误码由前端翻译。
+- [x] **`fmt.Sscanf` 忽略解析错误**：`server.go` 解析 `id/offset/limit`（`:222`、`:254`）忽略返回值，非法输入会静默变成 0。改用 `strconv` 并校验。
+- [x] **EventHub 丢消息竞争**：`events.go:Emit` 在 `RLock` 下从 channel 读取（drain）以腾位（`:42`），并发 Emit 时存在竞争且会丢最旧消息。评估是否改为每订阅者独立 goroutine 或加大缓冲/换写锁。
+- [x] **CORS 源为空串**：Web 模式默认 `corsOrigin=""`（`main_web.go:20`），`Access-Control-Allow-Origin` 被设为空值。明确策略（同源不设该头，或改为可配置）。
 
 ### P3 — 工程质量
-- [ ] **缺少 linter**：无 `golangci-lint` 配置，`frontend/package.json` 无 `lint` 脚本（仅 tsc）。补充静态检查并接入 CI。
-- [ ] **单元测试覆盖不足**：`tts_test.go` 仅有需真实 API key 的集成测试。为纯函数补测：`buildMessages`（各模型分支）、`addWavHeader`、SSE 解析（`backend.ts:parseSseEvent`）、`GetSettings` 默认值合并。
-- [ ] **冗余 `min` 函数**：`tts.go:289` 自定义 `min` 遮蔽了 Go 1.21+ 内置且未被引用，可删除。
-- [ ] **文档已过期**：`AGENTS.md` / 本文件的目录结构仍写 "单个 App.tsx + 单个 App.css"，实际前端已拆分为 `components/`、`hooks/`、`lib/`（含 `api_client.ts` 等）。更新目录树描述。
+- [x] **缺少 linter**：无 `golangci-lint` 配置，`frontend/package.json` 无 `lint` 脚本（仅 tsc）。补充静态检查并接入 CI。
+- [x] **单元测试覆盖不足**：`tts_test.go` 仅有需真实 API key 的集成测试。为纯函数补测：`buildMessages`（各模型分支）、`addWavHeader`、SSE 解析（`backend.ts:parseSseEvent`）、`GetSettings` 默认值合并。
+- [x] **冗余 `min` 函数**：`tts.go:289` 自定义 `min` 遮蔽了 Go 1.21+ 内置且未被引用，可删除。
+- [x] **文档已过期**：`AGENTS.md` / 本文件的目录结构仍写 "单个 App.tsx + 单个 App.css"，实际前端已拆分为 `components/`、`hooks/`、`lib/`（含 `api_client.ts` 等）。更新目录树描述。

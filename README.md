@@ -85,6 +85,17 @@ docker build -t tts .
 docker run -p 8080:8080 -e TTS_API_KEY=your_key tts
 ```
 
+### Web mode environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `TTS_API_KEY` | MiMo API key (fallback when not set in Settings) |
+| `TTS_WEB_ADDR` | Listen address (default `:8080`) |
+| `TTS_WEB_TOKEN` | If set, every `/api/*` request requires this token (sent as a Bearer header, or `?token=` for the event stream). The web UI prompts for it. |
+| `TTS_CORS_ORIGIN` | If set, emits CORS headers allowing this origin |
+
+The web API never returns the stored API key, and the key is encrypted at rest.
+
 ## Tech Stack
 
 - **Backend**: Go, Wails v2, GORM + SQLite
