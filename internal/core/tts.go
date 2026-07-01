@@ -286,13 +286,6 @@ func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optim
 	return scanner.Err()
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func addWavHeader(pcmData []byte, sampleRate int, channels int, bitsPerSample int) []byte {
 	byteRate := sampleRate * channels * bitsPerSample / 8
 	blockAlign := channels * bitsPerSample / 8
