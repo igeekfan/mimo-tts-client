@@ -29,7 +29,9 @@ func (s *Service) GetSettings() Settings {
 		defaults.Theme = rec.Theme
 	}
 	if rec.ApiKey != "" {
-		defaults.ApiKey = rec.ApiKey
+		if dec, err := decryptSecret(rec.ApiKey); err == nil {
+			defaults.ApiKey = dec
+		}
 	}
 	if rec.BaseUrl != "" {
 		defaults.BaseUrl = rec.BaseUrl
@@ -61,11 +63,15 @@ func (s *Service) SaveSettings(settings Settings) error {
 			styleHistoryJSON = string(b)
 		}
 	}
+	encryptedKey, err := encryptSecret(settings.ApiKey)
+	if err != nil {
+		return fmt.Errorf("encrypt api key: %w", err)
+	}
 	rec := SettingsRecord{
 		ID:           1,
 		Language:     settings.Language,
 		Theme:        settings.Theme,
-		ApiKey:       settings.ApiKey,
+		ApiKey:       encryptedKey,
 		BaseUrl:      settings.BaseUrl,
 		Model:        settings.Model,
 		Voice:        settings.Voice,
