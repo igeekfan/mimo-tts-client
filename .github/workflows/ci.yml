@@ -14,6 +14,12 @@ jobs:
         with:
           go-version: '1.25'
           cache: true
+      - name: Stub embedded frontend assets
+        # The desktop build embeds frontend/dist via //go:embed; the Go-only job
+        # does not build the frontend, so provide a placeholder to satisfy it.
+        run: |
+          mkdir -p frontend/dist
+          echo '<!doctype html><title>stub</title>' > frontend/dist/index.html
       - name: gofmt
         run: |
           unformatted=$(gofmt -l .)
