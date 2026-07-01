@@ -10,8 +10,32 @@ const (
 )
 
 var translations = map[Lang]map[string]string{
-	LangZhCN: {},
-	LangEnUS: {},
+	LangZhCN: {
+		"err.api_key_missing": "API Key 未配置，请在设置中填写",
+		"err.marshal_request": "请求序列化失败",
+		"err.create_request":  "创建请求失败",
+		"err.api_request":     "API 请求失败",
+		"err.read_response":   "读取响应失败",
+		"err.api_error":       "API 错误",
+		"err.api_status":      "API 返回状态码",
+		"err.parse_response":  "解析响应失败",
+		"err.empty_result":    "API 返回空结果",
+		"err.no_audio":        "API 未返回音频数据",
+		"err.decode_audio":    "解码音频失败",
+	},
+	LangEnUS: {
+		"err.api_key_missing": "API key is not configured. Please set it in Settings.",
+		"err.marshal_request": "failed to serialize request",
+		"err.create_request":  "failed to create request",
+		"err.api_request":     "API request failed",
+		"err.read_response":   "failed to read response",
+		"err.api_error":       "API error",
+		"err.api_status":      "API returned status code",
+		"err.parse_response":  "failed to parse response",
+		"err.empty_result":    "API returned an empty result",
+		"err.no_audio":        "API returned no audio data",
+		"err.decode_audio":    "failed to decode audio",
+	},
 }
 
 // I18n provides language-aware string lookups.

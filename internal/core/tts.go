@@ -106,7 +106,7 @@ func (s *Service) getApiConfig() (apiKey, baseUrl string, err error) {
 		apiKey = s.apiKey
 	}
 	if apiKey == "" {
-		return "", "", fmt.Errorf("API Key 未配置，请在设置中填写")
+		return "", "", fmt.Errorf("%s", s.i18n.T("err.api_key_missing"))
 	}
 	baseUrl = settings.BaseUrl
 	if baseUrl == "" {
@@ -146,7 +146,7 @@ func (s *Service) SynthesizeSpeech(ctx context.Context, text, model, voice, styl
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, "", fmt.Errorf("请求序列化失败: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", s.i18n.T("err.marshal_request"), err)
 	}
 
 	s.emitLog("[TTS] 请求: model=%s, voice=%s, format=wav, textLen=%d", model, truncateForLog(voice, 30), len(text))
@@ -154,7 +154,7 @@ func (s *Service) SynthesizeSpeech(ctx context.Context, text, model, voice, styl
 	url := baseUrl + "/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, "", fmt.Errorf("创建请求失败: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", s.i18n.T("err.create_request"), err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -162,40 +162,40 @@ func (s *Service) SynthesizeSpeech(ctx context.Context, text, model, voice, styl
 
 	resp, err := synthClient.Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("API 请求失败: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", s.i18n.T("err.api_request"), err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, "", fmt.Errorf("读取响应失败: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", s.i18n.T("err.read_response"), err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		var errResp chatResponse
 		if json.Unmarshal(body, &errResp) == nil && errResp.Error != nil {
-			return nil, "", fmt.Errorf("API 错误: %s", errResp.Error.Message)
+			return nil, "", fmt.Errorf("%s: %s", s.i18n.T("err.api_error"), errResp.Error.Message)
 		}
-		return nil, "", fmt.Errorf("API 返回状态码 %d: %s", resp.StatusCode, truncateForLog(string(body), 200))
+		return nil, "", fmt.Errorf("%s %d: %s", s.i18n.T("err.api_status"), resp.StatusCode, truncateForLog(string(body), 200))
 	}
 
 	var chatResp chatResponse
 	if err := json.Unmarshal(body, &chatResp); err != nil {
-		return nil, "", fmt.Errorf("解析响应失败: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", s.i18n.T("err.parse_response"), err)
 	}
 
 	if len(chatResp.Choices) == 0 {
-		return nil, "", fmt.Errorf("API 返回空结果")
+		return nil, "", fmt.Errorf("%s", s.i18n.T("err.empty_result"))
 	}
 
 	audioBase64 := chatResp.Choices[0].Message.Audio.Data
 	if audioBase64 == "" {
-		return nil, "", fmt.Errorf("API 未返回音频数据")
+		return nil, "", fmt.Errorf("%s", s.i18n.T("err.no_audio"))
 	}
 
 	audioData, err := base64.StdEncoding.DecodeString(audioBase64)
 	if err != nil {
-		return nil, "", fmt.Errorf("解码音频失败: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", s.i18n.T("err.decode_audio"), err)
 	}
 
 	s.emitLog("[TTS] 合成完成: %d bytes", len(audioData))
@@ -240,7 +240,7 @@ func (s *Service) SynthesizeSpeechStream(ctx context.Context, text, model, voice
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return fmt.Errorf("请求序列化失败: %w", err)
+		return fmt.Errorf("%s: %w", s.i18n.T("err.marshal_request"), err)
 	}
 
 	s.emitLog("[TTS Stream] 请求: model=%s, voice=%s, format=pcm16, textLen=%d", model, truncateForLog(voice, 30), len(text))
@@ -248,7 +248,7 @@ func (s *Service) SynthesizeSpeechStream(ctx context.Context, text, model, voice
 	url := baseUrl + "/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %w", err)
+		return fmt.Errorf("%s: %w", s.i18n.T("err.create_request"), err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -256,13 +256,13 @@ func (s *Service) SynthesizeSpeechStream(ctx context.Context, text, model, voice
 
 	resp, err := streamClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("API 请求失败: %w", err)
+		return fmt.Errorf("%s: %w", s.i18n.T("err.api_request"), err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API 返回状态码 %d: %s", resp.StatusCode, truncateForLog(string(body), 200))
+		return fmt.Errorf("%s %d: %s", s.i18n.T("err.api_status"), resp.StatusCode, truncateForLog(string(body), 200))
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -286,7 +286,7 @@ func (s *Service) SynthesizeSpeechStream(ctx context.Context, text, model, voice
 		}
 
 		if chunk.Error != nil {
-			return fmt.Errorf("API 错误: %s", chunk.Error.Message)
+			return fmt.Errorf("%s: %s", s.i18n.T("err.api_error"), chunk.Error.Message)
 		}
 
 		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Audio.Data != "" {
