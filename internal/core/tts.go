@@ -9,7 +9,25 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
+
+var (
+	// synthClient is used for non-streaming synthesis. A generous overall
+	// timeout guards against a hung upstream while still allowing long text.
+	synthClient = &http.Client{Timeout: 120 * time.Second}
+
+	// streamClient is used for streaming synthesis. It must not set an overall
+	// Timeout (which would abort a long stream); it bounds only the time to
+	// receive response headers. Cancelling the stream body is done via context.
+	streamClient = newStreamClient()
+)
+
+func newStreamClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 60 * time.Second
+	return &http.Client{Transport: transport}
+}
 
 type chatRequest struct {
 	Model    string        `json:"model"`
@@ -141,8 +159,7 @@ func (s *Service) SynthesizeSpeech(text, model, voice, style string, optimizeTex
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("api-key", apiKey)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := synthClient.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("API 请求失败: %w", err)
 	}
@@ -236,8 +253,7 @@ func (s *Service) SynthesizeSpeechStream(text, model, voice, style string, optim
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("api-key", apiKey)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := streamClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("API 请求失败: %w", err)
 	}
