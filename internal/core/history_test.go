@@ -8,15 +8,22 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// newTestService returns a Service backed by an in-memory SQLite database.
+// newTestService returns a Service backed by an isolated in-memory SQLite
+// database. A single connection is used so the shared in-memory schema stays
+// visible without leaking state across tests.
 func newTestService(t *testing.T) *Service {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("db handle: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
 	if err := db.AutoMigrate(&SettingsRecord{}, &HistoryRecord{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
