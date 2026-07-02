@@ -68,6 +68,18 @@ You can also configure the API key and base URL in the application settings UI.
 6. Click **Synthesize** or **Stream** for real-time playback
 7. Play, pause, or download the generated audio
 
+## macOS Installation Note
+
+If macOS blocks the app with a message such as "untrusted developer" or says the app should be moved to Trash, remove the quarantine attribute and try again:
+
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/MiMo-TTS.app
+```
+
+If you launch the app from a different location, replace `/Applications/MiMo-TTS.app` with the actual app path.
+
+This workaround matches the current unsigned release behavior on macOS. A properly signed and notarized release is still recommended for smoother installation.
+
 ## Web Mode
 
 In addition to the desktop app, the server can run as a standalone web server:

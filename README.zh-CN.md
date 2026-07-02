@@ -68,6 +68,18 @@ export TTS_API_KEY="your_api_key_here"
 6. 点击 **合成语音** 或 **流式合成** 实时播放
 7. 播放、暂停或下载生成的音频
 
+## macOS 安装说明
+
+如果在 macOS 上安装后无法打开，提示“开发者不受信任”或“已损坏，请移到废纸篓”，可以先移除隔离属性后再打开：
+
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/MiMo-TTS.app
+```
+
+如果你的应用不在 `/Applications/MiMo-TTS.app`，请把命令里的路径替换成实际安装路径。
+
+这个处理方式与当前未签名/未公证的 macOS 发布包相匹配，但从长期看，仍然建议补齐 Apple 签名和公证流程。
+
 ## Web 模式
 
 除了桌面应用，也可作为独立 Web 服务器运行：
