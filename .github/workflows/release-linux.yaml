@@ -158,7 +158,7 @@ jobs:
           cp $build_dir/usr/local/bin/${APP_NAME} AppDir/usr/bin/
 
           # Debian uses an absolute system path; AppImage must launch the bundled binary.
-          sed -i "s#^Exec=/usr/local/bin/${APP_NAME}$#Exec=${APP_NAME}#" \
+          sed -i "s#^Exec=/usr/local/bin/${APP_NAME}\$#Exec=${APP_NAME}#" \
             $build_dir/usr/share/applications/${APP_NAME}.desktop
 
           curl -o linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
