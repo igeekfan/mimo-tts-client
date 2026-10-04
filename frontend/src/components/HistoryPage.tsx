@@ -3,6 +3,8 @@ import HistoryPanel from './HistoryPanel'
 import {useDownload} from '../hooks/useDownload'
 import {useHistoryContext} from '../lib/contexts'
 import {useAudioPlayerContext} from '../lib/contexts'
+import {getErrorMessage} from '../lib/backend'
+import {toast} from 'sonner'
 
 const PAGE_SIZE = 20
 
@@ -16,19 +18,21 @@ export default function HistoryPage({navigate}: HistoryPageProps) {
     const {download} = useDownload()
 
     useEffect(() => {
-        history.loadHistory('', 1)
-    }, [])
+        void history.loadHistory('', 1)
+        return history.cancelHistoryLoad
+    }, [history.loadHistory, history.cancelHistoryLoad])
 
     const handleDeleteTask = useCallback((taskId: string) => {
-        history.deleteTask(taskId, audioPlayer.playingTaskId, audioPlayer.stop)
+        void history.deleteTask(taskId, audioPlayer.playingTaskId, audioPlayer.stop)
+            .catch(error => toast.error(getErrorMessage(error)))
     }, [history, audioPlayer])
 
     const handleClearCompleted = useCallback(() => {
-        history.clearCompleted(
+        void history.clearCompleted(
             audioPlayer.playingTaskId,
             audioPlayer.stop,
             (id) => history.tasks.find(t => t.id === id)?.status === 'completed' && audioPlayer.playingTaskId === id,
-        )
+        ).catch(error => toast.error(getErrorMessage(error)))
     }, [history, audioPlayer])
 
     const handleNavigateToSynthesis = useCallback(() => {

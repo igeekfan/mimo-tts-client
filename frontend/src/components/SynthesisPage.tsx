@@ -9,8 +9,11 @@ import {useAudioPlayerContext} from '../lib/contexts'
 import {useInputContext} from '../lib/contexts'
 import {useDownload} from '../hooks/useDownload'
 import {selectSynthesisPreviewTasks} from '../lib/synthesisPreviewTasks'
+import {getRequestVoice} from '../lib/voiceData'
+import {useI18n} from '../i18n/context'
 
 export default function SynthesisPage() {
+    const {t} = useI18n()
     const {inputText, setInputText} = useInputContext()
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [directorMode, setDirectorMode] = useState(false)
@@ -18,6 +21,8 @@ export default function SynthesisPage() {
     const [directorScene, setDirectorScene] = useState('')
     const [directorDirection, setDirectorDirection] = useState('')
     const [optimizeTextPreview, setOptimizeTextPreview] = useState(true)
+    const [cloneFileName, setCloneFileName] = useState('')
+    const [cloneAudioData, setCloneAudioData] = useState('')
 
     const settings = useSettingsContext()
     const history = useHistoryContext()
@@ -32,44 +37,40 @@ export default function SynthesisPage() {
         audioPlayer.play,
     )
 
-    useEffect(() => {
-        history.loadHistory('', 1)
-    }, [])
-
-    useEffect(() => () => audioPlayer.stop(), [])
+    useEffect(() => () => audioPlayer.stop(), [audioPlayer.stop])
 
     const buildStyleContent = useCallback(() => {
         if (directorMode) {
             const parts = []
-            if (directorRole) parts.push(`角色：${directorRole}`)
-            if (directorScene) parts.push(`场景：${directorScene}`)
-            if (directorDirection) parts.push(`指导：${directorDirection}`)
+            if (directorRole) parts.push(`${t('style.director.role')}：${directorRole}`)
+            if (directorScene) parts.push(`${t('style.director.scene')}：${directorScene}`)
+            if (directorDirection) parts.push(`${t('style.director.direction')}：${directorDirection}`)
             return parts.join('\n\n')
         }
         return settings.style
-    }, [directorMode, directorRole, directorScene, directorDirection, settings.style])
+    }, [directorMode, directorRole, directorScene, directorDirection, settings.style, t])
+
+    const buildSynthesisInput = useCallback(() => {
+        const currentStyle = buildStyleContent()
+        return {
+            text: inputText,
+            model: settings.model,
+            voice: getRequestVoice(settings.model, settings.voice, cloneFileName),
+            cloneAudioData: settings.model === 'mimo-v2.5-tts-voiceclone' ? cloneAudioData : undefined,
+            style: currentStyle,
+            optimizeTextPreview: settings.model === 'mimo-v2.5-tts-voicedesign' ? optimizeTextPreview : undefined,
+        }
+    }, [buildStyleContent, cloneAudioData, cloneFileName, inputText, optimizeTextPreview, settings.model, settings.voice])
 
     const handleSynthesize = useCallback(() => {
-        const currentStyle = buildStyleContent()
-        synthesis.synthesize(
-            inputText,
-            settings.model,
-            settings.voice,
-            currentStyle,
-            settings.model === 'mimo-v2.5-tts-voicedesign' ? optimizeTextPreview : undefined,
-        )
-    }, [inputText, settings.model, settings.voice, buildStyleContent, optimizeTextPreview, synthesis])
+        void synthesis.synthesize(buildSynthesisInput())
+    }, [buildSynthesisInput, synthesis.synthesize])
 
     const handleSynthesizeStream = useCallback(() => {
-        const currentStyle = buildStyleContent()
-        synthesis.synthesizeStream(
-            inputText,
-            settings.model,
-            settings.voice,
-            currentStyle,
-            settings.model === 'mimo-v2.5-tts-voicedesign' ? optimizeTextPreview : undefined,
-        )
-    }, [inputText, settings.model, settings.voice, buildStyleContent, optimizeTextPreview, synthesis])
+        void synthesis.synthesizeStream(buildSynthesisInput())
+    }, [buildSynthesisInput, synthesis.synthesizeStream])
+
+    const canSynthesize = settings.model !== 'mimo-v2.5-tts-voiceclone' || Boolean(cloneAudioData)
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
@@ -91,6 +92,7 @@ export default function SynthesisPage() {
                             isSynthesizing={synthesis.isSynthesizing}
                             isStreaming={synthesis.isStreaming}
                             isStreamPaused={synthesis.isStreamPaused}
+                            canSynthesize={canSynthesize}
                         />
                     </div>
 
@@ -121,6 +123,10 @@ export default function SynthesisPage() {
                         setModel={settings.setModel}
                         voice={settings.voice}
                         setVoice={settings.setVoice}
+                        cloneFileName={cloneFileName}
+                        setCloneFileName={setCloneFileName}
+                        cloneAudioData={cloneAudioData}
+                        setCloneAudioData={setCloneAudioData}
                         style={settings.style}
                         setStyle={settings.setStyle}
                         directorMode={directorMode}

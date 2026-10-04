@@ -124,9 +124,10 @@ Both modes share the same core business logic in `internal/core/`.
 | Variable | Mode | Description |
 |----------|------|-------------|
 | `TTS_API_KEY` | both | MiMo API key (fallback when not set in Settings) |
-| `TTS_WEB_ADDR` | web | Listen address (default `:8080`) |
-| `TTS_WEB_TOKEN` | web | If set, all `/api/*` require this token (Bearer header or `?token=`) |
+| `TTS_WEB_ADDR` | web | Listen address (default `127.0.0.1:8080`; non-loopback requires a strong token) |
+| `TTS_WEB_TOKEN` | web | Access token for `/api/*`; required for non-loopback binds. Only `/api/events` accepts `?token=`. |
 | `TTS_CORS_ORIGIN` | web | If set, sends CORS headers for this origin |
+| `TTS_BASE_URL` | web | Trusted fixed upstream URL; cannot be changed through the Web API |
 
 ## Key Libraries
 

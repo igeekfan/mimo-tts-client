@@ -1,10 +1,10 @@
-import React, {useMemo} from 'react'
+import React, {useEffect, useMemo, useState} from 'react'
 import {createRoot} from 'react-dom/client'
 import './styles/globals.css'
 import App from './App'
 import LogPage from './components/LogPage'
 import ErrorBoundary from './components/ErrorBoundary'
-import {I18nProvider} from './i18n/context'
+import {I18nProvider, useI18n} from './i18n/context'
 import {LogContext} from './lib/LogContext'
 import {SettingsProvider, HistoryProvider, AudioPlayerProvider, InputProvider} from './lib/contexts'
 import {useLogs} from './hooks/useLogs'
@@ -31,13 +31,29 @@ function Router() {
     return <App route={route} navigate={navigate} />
 }
 
+function AuthGate({children}: {children: React.ReactNode}) {
+    const {t} = useI18n()
+    const [ready, setReady] = useState(false)
+    const promptMessage = t('auth.tokenPrompt')
+
+    useEffect(() => {
+        let active = true
+        void initWebAuth(promptMessage).finally(() => {
+            if (active) setReady(true)
+        })
+        return () => { active = false }
+    }, [promptMessage])
+
+    return ready ? children : null
+}
+
 const container = document.getElementById('root')
 const root = createRoot(container!)
 
-function render() {
-    root.render(
-        <React.StrictMode>
-            <I18nProvider>
+root.render(
+    <React.StrictMode>
+        <I18nProvider>
+            <AuthGate>
                 <TooltipProvider>
                     <LogProvider>
                         <SettingsProvider>
@@ -54,11 +70,7 @@ function render() {
                     </LogProvider>
                 </TooltipProvider>
                 <Toaster position="bottom-center" />
-            </I18nProvider>
-        </React.StrictMode>
-    )
-}
-
-// Resolve web auth (no-op on desktop / when no token is required) before the
-// app issues its first API calls, then render.
-initWebAuth().finally(render)
+            </AuthGate>
+        </I18nProvider>
+    </React.StrictMode>
+)

@@ -15,11 +15,12 @@ type Settings struct {
 }
 
 type TTSRequest struct {
+	RequestID           string `json:"requestId"`
 	Text                string `json:"text"`
 	Model               string `json:"model"`
 	Voice               string `json:"voice"`
+	CloneAudioData      string `json:"cloneAudioData,omitempty"`
 	Style               string `json:"style"`
-	OutputDir           string `json:"outputDir"`
 	OptimizeTextPreview bool   `json:"optimizeTextPreview"`
 }
 
@@ -34,6 +35,7 @@ type StreamTTSRequest struct {
 	Text                string `json:"text"`
 	Model               string `json:"model"`
 	Voice               string `json:"voice"`
+	CloneAudioData      string `json:"cloneAudioData,omitempty"`
 	Style               string `json:"style"`
 	OptimizeTextPreview bool   `json:"optimizeTextPreview"`
 }

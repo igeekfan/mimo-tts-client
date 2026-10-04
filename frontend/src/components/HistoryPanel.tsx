@@ -48,8 +48,7 @@ function HistoryPanel({
 
     const handleExpand = useCallback((taskId: string) => {
         setExpandedTaskId(taskId)
-        onLoadAudio(taskId)
-    }, [setExpandedTaskId, onLoadAudio])
+    }, [setExpandedTaskId])
 
     const handleCollapse = useCallback(() => {
         setExpandedTaskId(null)

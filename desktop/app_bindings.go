@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"mimo-tts-client/internal/core"
 	"time"
+
+	"mimo-tts-client/internal/core"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -53,7 +54,32 @@ func (a *App) CheckForUpdate() (UpdateInfo, error) {
 }
 
 func (a *App) SynthesizeSpeech(req TTSRequest) (TTSResponse, error) {
-	audioData, format, err := a.service.SynthesizeSpeech(a.ctx, req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview)
+	if a.ctx == nil {
+		return TTSResponse{}, fmt.Errorf("app context not initialized")
+	}
+	if req.RequestID == "" {
+		return TTSResponse{}, fmt.Errorf("request id is required")
+	}
+	coreReq := core.SynthesisRequest{
+		Text:                req.Text,
+		Model:               req.Model,
+		Voice:               req.Voice,
+		CloneAudioData:      req.CloneAudioData,
+		Style:               req.Style,
+		OptimizeTextPreview: req.OptimizeTextPreview,
+	}
+	if err := core.ValidateSynthesisRequest(coreReq); err != nil {
+		return TTSResponse{}, err
+	}
+
+	ctx, cancel := context.WithCancel(a.ctx)
+	if err := a.registerRequest(req.RequestID, cancel); err != nil {
+		cancel()
+		return TTSResponse{}, err
+	}
+	defer a.unregisterRequest(req.RequestID)
+
+	audioData, format, err := a.service.SynthesizeSpeech(ctx, coreReq)
 	if err != nil {
 		return TTSResponse{
 			AudioData: "",
@@ -75,16 +101,30 @@ func (a *App) StartSynthesizeSpeechStream(req StreamTTSRequest) error {
 	if req.StreamID == "" {
 		return fmt.Errorf("stream id is required")
 	}
+	coreReq := core.SynthesisRequest{
+		Text:                req.Text,
+		Model:               req.Model,
+		Voice:               req.Voice,
+		CloneAudioData:      req.CloneAudioData,
+		Style:               req.Style,
+		OptimizeTextPreview: req.OptimizeTextPreview,
+	}
+	if err := core.ValidateSynthesisRequest(coreReq); err != nil {
+		return err
+	}
 
 	eventName := "tts:stream:" + req.StreamID
 
 	ctx, cancel := context.WithCancel(a.ctx)
-	a.registerStream(req.StreamID, cancel)
+	if err := a.registerRequest(req.StreamID, cancel); err != nil {
+		cancel()
+		return err
+	}
 
 	go func() {
-		defer a.unregisterStream(req.StreamID)
+		defer a.unregisterRequest(req.StreamID)
 
-		err := a.service.SynthesizeSpeechStream(ctx, req.Text, req.Model, req.Voice, req.Style, req.OptimizeTextPreview, func(chunk []byte) error {
+		err := a.service.SynthesizeSpeechStream(ctx, coreReq, func(chunk []byte) error {
 			wailsRuntime.EventsEmit(a.ctx, eventName, StreamChunk{
 				Data: base64.StdEncoding.EncodeToString(chunk),
 			})

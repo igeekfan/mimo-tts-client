@@ -21,6 +21,8 @@ func TestAuthorized(t *testing.T) {
 		{"wrong bearer rejected", "GET", "/api/version", "wrong", false},
 		{"query token accepted", "GET", "/api/events?token=secret", "", true},
 		{"wrong query token rejected", "GET", "/api/events?token=nope", "", false},
+		{"query token rejected outside events", "GET", "/api/version?token=secret", "", false},
+		{"health is public", "GET", "/healthz", "", true},
 	}
 
 	for _, tc := range cases {

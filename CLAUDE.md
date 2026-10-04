@@ -15,8 +15,8 @@ wails build                                   # → build/bin/mimo-tts-client
 
 # Web mode — same core, served as HTTP API + SPA (build tag `web`)
 go build -tags web -o tts-server .            # needs frontend/dist to exist (npm run build)
-./tts-server                                  # listens on :8080 (override TTS_WEB_ADDR)
-docker build -t tts . && docker run -p 8080:8080 -e TTS_API_KEY=key tts
+./tts-server                                  # listens on 127.0.0.1:8080 by default
+docker build -t tts . && docker run -p 8080:8080 -e TTS_API_KEY=key -e TTS_WEB_TOKEN=replace-with-a-long-random-token tts
 
 # Go
 go build ./...                                # NOTE: default build tag = desktop (main.go), not web
@@ -25,7 +25,7 @@ go test ./...                                 # unit tests live in internal/core
 go test ./internal/core -run TestSynthesizeSpeech   # single test
 
 # Frontend (from frontend/)
-npm install
+npm ci
 npm run build                                 # tsc type-check THEN vite build
 npm run dev                                   # Vite only (no Go backend)
 ```

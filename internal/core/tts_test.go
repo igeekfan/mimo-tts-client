@@ -1,3 +1,5 @@
+//go:build integration
+
 package core
 
 import (
@@ -13,6 +15,9 @@ import (
 )
 
 func TestSynthesizeSpeech(t *testing.T) {
+	if os.Getenv("TTS_RUN_INTEGRATION") != "1" {
+		t.Skip("set TTS_RUN_INTEGRATION=1 and use -tags integration to call the paid API")
+	}
 	apiKey := os.Getenv("TTS_API_KEY")
 	if apiKey == "" {
 		t.Skip("TTS_API_KEY not set")
@@ -107,13 +112,20 @@ func TestSynthesizeSpeech(t *testing.T) {
 }
 
 func TestSynthesizeSpeechIntegration(t *testing.T) {
+	if os.Getenv("TTS_RUN_INTEGRATION") != "1" {
+		t.Skip("set TTS_RUN_INTEGRATION=1 and use -tags integration to call the paid API")
+	}
 	apiKey := os.Getenv("TTS_API_KEY")
 	if apiKey == "" {
 		t.Skip("TTS_API_KEY not set")
 	}
 	s := &Service{apiKey: apiKey}
 
-	audioData, format, err := s.SynthesizeSpeech(context.Background(), "你好世界", "mimo-v2.5-tts", "mimo_default", "", false)
+	audioData, format, err := s.SynthesizeSpeech(context.Background(), SynthesisRequest{
+		Text:  "你好世界",
+		Model: ModelPreset,
+		Voice: "mimo_default",
+	})
 	if err != nil {
 		t.Fatalf("SynthesizeSpeech: %v", err)
 	}

@@ -1,23 +1,30 @@
-# golangci-lint configuration.
-# Run locally with: golangci-lint run
-# In CI this runs in report-only mode for now (see .github/workflows/ci.yml);
-# enable it as a hard gate once existing findings are cleaned up.
-run:
-  timeout: 5m
-
+version: "2"
+# The v2 standard set includes errcheck, govet, ineffassign, staticcheck, and unused.
+# Keep project-specific checks explicit here; CI supplies the execution timeout.
 linters:
   enable:
-    - govet
-    - staticcheck
-    - errcheck
-    - ineffassign
-    - unused
-    - gofmt
     - misspell
-
-issues:
-  exclude-rules:
-    # Test helpers frequently ignore errors for brevity.
-    - path: _test\.go
-      linters:
-        - errcheck
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

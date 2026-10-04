@@ -26,6 +26,7 @@ const zhCN: Record<string, string> = {
     'voice.loading': '加载中...',
     'voice.fileTooLarge': '文件超过 10MB 限制',
     'voice.readFileError': '读取文件失败',
+    'voice.cloneRequired': '请先选择音频样本',
 
     // Style
     'style': '风格',
@@ -43,6 +44,7 @@ const zhCN: Record<string, string> = {
     'synthesis.synthesizing': '合成中...',
     'synthesis.streaming': '流式合成中...',
     'synthesis.completed': '合成完成',
+    'synthesis.error': '合成失败',
     'synthesis.enterText': '请输入文本',
     'synthesis.cancelled': '合成已取消',
     'synthesis.smartPolish': '智能润色',
@@ -58,6 +60,9 @@ const zhCN: Record<string, string> = {
     'history.loadMore': '加载更多',
     'history.firstHint': '开始合成你的第一段语音',
     'history.loadingAudio': '加载音频中...',
+    'history.expand': '展开任务',
+    'history.collapse': '收起任务',
+    'history.audioLoadFailed': '音频加载失败，请重试',
 
     // Settings
     'settings.title': '设置',
@@ -97,6 +102,14 @@ const zhCN: Record<string, string> = {
     // Audio
     'audio.loading': '加载音频...',
     'audio.notAvailable': '暂无音频',
+    'audio.selectTask': '选择一条任务以播放音频',
+    'audio.play': '播放音频',
+    'audio.stop': '停止播放',
+    'audio.seek': '播放进度',
+    'audio.download': '下载音频',
+
+    // Authentication
+    'auth.tokenPrompt': '此服务器需要访问令牌：',
 
     // Tags
     'tags.emotion': '情绪',

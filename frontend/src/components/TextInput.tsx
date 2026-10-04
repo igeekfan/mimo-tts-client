@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react'
+import {useState, useEffect, useCallback} from 'react'
 import {useI18n} from '../i18n/context'
 import {AUDIO_TAGS} from '../lib/constants'
 import {Button} from '@/components/ui/button'
@@ -18,12 +18,20 @@ interface TextInputProps {
     isSynthesizing: boolean
     isStreaming: boolean
     isStreamPaused: boolean
+    canSynthesize: boolean
+}
+
+function activateOnKeyboard(event: React.KeyboardEvent, action: () => void) {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        action()
+    }
 }
 
 export default function TextInput({
     inputText, setInputText, textareaRef,
     onSynthesize, onSynthesizeStream, onToggleStreamPause, onCancelSynthesize, onCancelStream,
-    isSynthesizing, isStreaming, isStreamPaused
+    isSynthesizing, isStreaming, isStreamPaused, canSynthesize
 }: TextInputProps) {
     const {t} = useI18n()
     const [tagsOpen, setTagsOpen] = useState(false)
@@ -36,10 +44,27 @@ export default function TextInput({
         }
     }, [inputText, isStreaming, textareaRef])
 
+    const insertAudioTag = useCallback((tag: string) => {
+        const ta = textareaRef.current
+        if (ta) {
+            const start = ta.selectionStart
+            const end = ta.selectionEnd
+            const newText = inputText.slice(0, start) + tag + inputText.slice(end)
+            setInputText(newText)
+            setTimeout(() => {
+                ta.selectionStart = ta.selectionEnd = start + tag.length
+                ta.focus()
+            }, 0)
+        } else {
+            setInputText(prev => prev + tag)
+        }
+    }, [inputText, setInputText, textareaRef])
+
     return (
         <div className="space-y-2">
             {/* 输入区 */}
             <textarea
+                aria-label={t('input.title')}
                 ref={textareaRef as React.RefObject<HTMLTextAreaElement>}
                 className="flex min-h-[100px] max-h-[200px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 resize-y transition-colors whitespace-pre-wrap break-words"
                 placeholder={t('input.placeholder')}
@@ -70,18 +95,10 @@ export default function TextInput({
                                             key={at.tag}
                                             variant="outline"
                                             className="cursor-pointer text-[10px] px-1.5 py-0 hover:bg-accent hover:text-accent-foreground transition-colors"
-                                            onClick={() => {
-                                                const ta = textareaRef.current
-                                                if (ta) {
-                                                    const start = ta.selectionStart
-                                                    const end = ta.selectionEnd
-                                                    const newText = inputText.slice(0, start) + at.tag + inputText.slice(end)
-                                                    setInputText(newText)
-                                                    setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + at.tag.length; ta.focus() }, 0)
-                                                } else {
-                                                    setInputText(prev => prev + at.tag)
-                                                }
-                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => insertAudioTag(at.tag)}
+                                            onKeyDown={event => activateOnKeyboard(event, () => insertAudioTag(at.tag))}
                                         >
                                             {at.label}
                                         </Badge>
@@ -98,7 +115,7 @@ export default function TextInput({
                 <Button
                     className="flex-1 h-8 text-xs font-medium"
                     onClick={onSynthesize}
-                    disabled={!inputText.trim() || isStreaming || isSynthesizing}
+                    disabled={!inputText.trim() || !canSynthesize || isStreaming || isSynthesizing}
                 >
                     {isSynthesizing ? (
                         <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
@@ -111,7 +128,7 @@ export default function TextInput({
                     className="flex-1 h-8 text-xs font-medium"
                     variant="outline"
                     onClick={isStreaming ? onToggleStreamPause : onSynthesizeStream}
-                    disabled={!inputText.trim() && !isStreaming}
+                    disabled={isSynthesizing || (!isStreaming && (!inputText.trim() || !canSynthesize))}
                 >
                     {isStreaming ? (
                         isStreamPaused ? <Play className="w-3.5 h-3.5 mr-1.5" /> : <Pause className="w-3.5 h-3.5 mr-1.5" />

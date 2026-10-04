@@ -67,13 +67,13 @@ func (h *EventHub) Emit(name string, data any) {
 
 func (h *EventHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		methodNotAllowed(w, http.MethodGet)
 		return
 	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		writeAPIError(w, http.StatusInternalServerError, "streaming_unsupported", "streaming is not supported")
 		return
 	}
 

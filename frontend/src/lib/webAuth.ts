@@ -40,7 +40,14 @@ async function validateToken(token: string): Promise<boolean> {
  * calls. No-op on desktop or when the server does not require auth. Prompts the
  * user for the token when needed.
  */
-export async function initWebAuth(): Promise<void> {
+let initializationPromise: Promise<void> | null = null
+
+export function initWebAuth(promptMessage: string): Promise<void> {
+  if (!initializationPromise) initializationPromise = runWebAuth(promptMessage)
+  return initializationPromise
+}
+
+async function runWebAuth(promptMessage: string): Promise<void> {
   if (typeof (window as any).go?.desktop?.App !== 'undefined') return
 
   let authRequired = false
@@ -58,7 +65,7 @@ export async function initWebAuth(): Promise<void> {
   for (let attempt = 0; attempt < 5; attempt++) {
     let token = getToken()
     if (!token) {
-      token = window.prompt('This server requires an access token:') || ''
+      token = window.prompt(promptMessage) || ''
       if (!token) continue
       setToken(token)
     }

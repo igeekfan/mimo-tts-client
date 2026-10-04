@@ -19,6 +19,6 @@ var (
 // Safe to call when no console is attached (Wails GUI build): the syscalls just
 // return without effect.
 func EnableUTF8Console() {
-	procSetConsoleOutCP.Call(uintptr(cpUTF8))
-	procSetConsoleInputCP.Call(uintptr(cpUTF8))
+	_, _, _ = procSetConsoleOutCP.Call(uintptr(cpUTF8))
+	_, _, _ = procSetConsoleInputCP.Call(uintptr(cpUTF8))
 }

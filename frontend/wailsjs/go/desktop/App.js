@@ -6,6 +6,10 @@ export function CancelStream(arg1) {
   return window['go']['desktop']['App']['CancelStream'](arg1);
 }
 
+export function CancelSynthesis(arg1) {
+  return window['go']['desktop']['App']['CancelSynthesis'](arg1);
+}
+
 export function CheckForUpdate() {
   return window['go']['desktop']['App']['CheckForUpdate']();
 }

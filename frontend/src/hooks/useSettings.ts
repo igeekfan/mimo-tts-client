@@ -1,8 +1,9 @@
-import {useState, useEffect, useCallback} from 'react'
+import {useState, useEffect, useCallback, useRef} from 'react'
 import {GetSettings, SaveSettings, CheckForUpdate, GetAboutInfo, OpenReleasePage} from '../lib/backend'
-import {ModelType, AboutInfo, UpdateInfo} from '../types'
+import {ModelType, AboutInfo, UpdateInfo, Settings} from '../types'
 import {useI18n} from '../i18n/context'
 import {toast} from 'sonner'
+import {sanitizeSettingsForPersistence, sanitizeVoiceLabel} from '../lib/voiceData'
 
 const STORAGE_KEY_THEME = 'TTS-theme'
 
@@ -26,20 +27,27 @@ export function useSettings() {
     const [updateLoading, setUpdateLoading] = useState(false)
     const [updateError, setUpdateError] = useState('')
     const [apiSettingsOpen, setApiSettingsOpen] = useState(false)
+    const [settingsLoaded, setSettingsLoaded] = useState(false)
+    const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
     useEffect(() => {
+        let active = true
         GetSettings().then(settings => {
+            if (!active) return
+            if (settings.language === 'zh-CN' || settings.language === 'en-US') setLang(settings.language)
             if (settings.theme) setTheme(settings.theme as 'light' | 'dark')
             if (settings.apiKey) setApiKey(settings.apiKey)
             if (settings.baseUrl) setBaseUrl(settings.baseUrl)
             if (settings.model) setModel(settings.model as ModelType)
-            if (settings.voice) setVoice(settings.voice)
+            if (settings.voice !== undefined) setVoice(sanitizeVoiceLabel(settings.voice))
             if (settings.style !== undefined) setStyle(settings.style)
             if (settings.styleHistory) setStyleHistory(settings.styleHistory)
+            setSettingsLoaded(true)
         }).catch(console.error)
 
         GetAboutInfo().then(info => setAboutInfo(info)).catch(console.error)
-    }, [])
+        return () => { active = false }
+    }, [setLang])
 
     useEffect(() => {
         const root = document.documentElement
@@ -49,11 +57,27 @@ export function useSettings() {
     }, [theme])
 
     useEffect(() => {
+        if (!settingsLoaded) return
         const timer = setTimeout(() => {
-            SaveSettings({language: lang, theme, apiKey, baseUrl, model, voice, style, styleHistory}).catch(console.error)
+            const settings: Settings = sanitizeSettingsForPersistence({
+                language: lang,
+                theme,
+                apiKey,
+                baseUrl,
+                model,
+                voice,
+                style,
+                styleHistory,
+            })
+            // Serialize writes so a slow older request can never finish after
+            // and overwrite a newer settings snapshot.
+            saveQueueRef.current = saveQueueRef.current
+                .catch(() => undefined)
+                .then(() => SaveSettings(settings))
+                .catch(error => console.error('Failed to save settings:', error))
         }, 500)
         return () => clearTimeout(timer)
-    }, [lang, theme, apiKey, baseUrl, model, voice, style, styleHistory])
+    }, [settingsLoaded, lang, theme, apiKey, baseUrl, model, voice, style, styleHistory])
 
     const checkUpdate = useCallback(async () => {
         setUpdateLoading(true)

@@ -61,7 +61,10 @@ func main() {
 
 	// 打印响应结构（隐藏音频数据）
 	var result map[string]interface{}
-	json.Unmarshal(body, &result)
+	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Printf("解析响应失败: %v\n", err)
+		os.Exit(1)
+	}
 
 	if choices, ok := result["choices"].([]interface{}); ok && len(choices) > 0 {
 		choice := choices[0].(map[string]interface{})

@@ -4,6 +4,8 @@ import {desktop} from '../models';
 
 export function CancelStream(arg1:string):Promise<void>;
 
+export function CancelSynthesis(arg1:string):Promise<void>;
+
 export function CheckForUpdate():Promise<desktop.UpdateInfo>;
 
 export function ClearHistory():Promise<void>;

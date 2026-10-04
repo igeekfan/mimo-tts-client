@@ -16,7 +16,7 @@
 - **音频播放器**：进度条、拖动、音量控制、播放/暂停/停止
 - **合成历史**：持久化存储，支持播放、下载、删除
 - **风格历史**：最近使用的风格标签，方便快速复用
-- **深色/浅色主题**：手动切换或自动跟随系统
+- **深色/浅色主题**：手动切换主题
 - **中英双语界面**：设置自动保存/恢复
 - **双模式运行**：桌面应用（Wails）+ Web 服务器（HTTP/SSE），共享代码
 - **REST API**：完整的 HTTP API，支持无头/远程使用
@@ -31,15 +31,15 @@
 
 ## 环境要求
 
-- [Go](https://go.dev/dl/) 1.21+
-- [Node.js](https://nodejs.org/) 18+
-- [Wails v2](https://wails.io/docs/gettingstarted/installation)
+- [Go](https://go.dev/dl/) 1.25.13+
+- [Node.js](https://nodejs.org/) 22.x
+- [Wails v2.12.0](https://wails.io/docs/gettingstarted/installation)
 
 ## 开发
 
 ```bash
 # 安装依赖
-cd frontend && npm install && cd ..
+cd frontend && npm ci && cd ..
 
 # 运行开发服务器
 wails dev
@@ -56,7 +56,7 @@ wails build
 export TTS_API_KEY="your_api_key_here"
 ```
 
-也可以在应用设置界面中配置 API Key 和 Base URL。
+也可以在桌面应用设置界面中配置 API Key 和 Base URL。Web 模式的上游地址只能由可信的 `TTS_BASE_URL` 环境变量固定配置，不能通过 Web API 修改。
 
 ## 使用方法
 
@@ -90,12 +90,32 @@ go build -tags web -o tts-server .
 # 打开 http://localhost:8080
 ```
 
+Web 默认只监听本机回环地址 `127.0.0.1:8080`。监听非回环地址时，必须配置至少 16 个字符的 `TTS_WEB_TOKEN`。
+
 或使用 Docker：
 
 ```bash
 docker build -t tts .
-docker run -p 8080:8080 -e TTS_API_KEY=your_key tts
+docker run -p 8080:8080 \
+  -v mimo-tts-data:/data \
+  -e TTS_API_KEY=your_key \
+  -e TTS_WEB_TOKEN='replace-with-a-long-random-token' \
+  tts
 ```
+
+远程使用时请在容器前配置 TLS 反向代理。容器使用非回环监听，如果访问令牌缺失或过短会拒绝启动。
+
+### Web 模式环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `TTS_API_KEY` | MiMo API Key（设置中未配置时的回退值） |
+| `TTS_WEB_ADDR` | 监听地址（默认 `127.0.0.1:8080`；非回环监听要求强令牌） |
+| `TTS_WEB_TOKEN` | `/api/*` 访问令牌；非回环监听时必填。只有 SSE 事件流可使用 `?token=`。 |
+| `TTS_CORS_ORIGIN` | 可选的跨域来源 |
+| `TTS_BASE_URL` | Web 模式可信且固定的 MiMo 兼容上游地址，默认 `https://api.xiaomimimo.com/v1` |
+
+Web API 不会返回保存的 API Key 或音色复刻参考音频；API Key 会加密落盘。
 
 ## 技术栈
 

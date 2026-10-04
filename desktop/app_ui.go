@@ -55,7 +55,7 @@ func (a *App) OpenFolder(path string) error {
 	return cmd.Start()
 }
 
-const releasePageURL = "https://github.com/igeekfan/TTS/releases"
+const releasePageURL = "https://github.com/igeekfan/mimo-tts-client/releases"
 
 func (a *App) OpenReleasePage() error {
 	var cmd *exec.Cmd

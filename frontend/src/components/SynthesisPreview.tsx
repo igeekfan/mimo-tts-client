@@ -5,6 +5,7 @@ import {formatTime, isLoadingAudio as checkIsLoadingAudio} from '../lib/audioUti
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {Play, Pause, Square, Download, Loader2, Volume2, CheckCircle2, AlertCircle} from 'lucide-react'
+import {sanitizeVoiceLabel} from '../lib/voiceData'
 
 interface SynthesisPreviewProps {
     tasks: SynthesisTask[]
@@ -96,7 +97,9 @@ function SynthesisPreview({
                     ) : null}
                 </div>
                 <div className="flex items-center gap-1">
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{latestTask.voice}</Badge>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {sanitizeVoiceLabel(latestTask.voice, 'voice-clone')}
+                    </Badge>
                     {latestTask.model && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                             {latestTask.model.replace('mimo-v2.5-tts-', '')}
@@ -125,6 +128,7 @@ function SynthesisPreview({
                                 {/* 主播放按钮行 */}
                                 <div className="flex items-center gap-3">
                                     <Button
+                                        aria-label={isTaskPlaying ? t('common.pause') : t('audio.play')}
                                         variant={isTaskPlaying ? 'default' : 'outline'}
                                         size="icon"
                                         className="h-10 w-10 rounded-full shrink-0"
@@ -133,11 +137,11 @@ function SynthesisPreview({
                                         {isTaskPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                                     </Button>
                                     {isActive && (
-                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full shrink-0" onClick={onStop}>
+                                        <Button aria-label={t('audio.stop')} variant="outline" size="icon" className="h-8 w-8 rounded-full shrink-0" onClick={onStop}>
                                             <Square className="w-3 h-3" />
                                         </Button>
                                     )}
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={handleDownload}>
+                                    <Button aria-label={t('audio.download')} variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={handleDownload}>
                                         <Download className="w-4 h-4" />
                                     </Button>
                                 </div>
@@ -147,6 +151,7 @@ function SynthesisPreview({
                                     <div className="w-full max-w-xs flex items-center gap-2">
                                         <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">{formatTime(currentTime)}</span>
                                         <input
+                                            aria-label={t('audio.seek')}
                                             type="range"
                                             className="flex-1 h-1 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                                             min={0}

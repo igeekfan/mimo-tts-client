@@ -3,18 +3,31 @@ export type ModelType = 'mimo-v2.5-tts' | 'mimo-v2.5-tts-voicedesign' | 'mimo-v2
 export type AudioFormat = 'wav' | 'pcm16'
 
 export interface TTSRequest {
+  requestId?: string
   text: string
   model: ModelType
   voice: string
+  cloneAudioData?: string
   style?: string
   audioFormat: AudioFormat
   stream: boolean
+  optimizeTextPreview?: boolean
 }
 
 export interface TTSResponse {
-  audioData: number[]
+  audioData: string
   format: AudioFormat
   error?: string
+}
+
+export interface SynthesisRequest {
+  requestId: string
+  text: string
+  model: ModelType
+  voice: string
+  cloneAudioData?: string
+  style: string
+  optimizeTextPreview?: boolean
 }
 
 export interface VoicePreset {
@@ -65,6 +78,7 @@ export interface SynthesisTask {
   progress: number
   audioBlob?: Blob
   hasAudio?: boolean
+  audioError?: string
   error?: string
   createdAt: string
   dbId?: number

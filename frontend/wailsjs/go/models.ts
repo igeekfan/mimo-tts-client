@@ -151,6 +151,7 @@ export namespace desktop {
 	    text: string;
 	    model: string;
 	    voice: string;
+	    cloneAudioData?: string;
 	    style: string;
 	    optimizeTextPreview: boolean;
 	
@@ -164,16 +165,18 @@ export namespace desktop {
 	        this.text = source["text"];
 	        this.model = source["model"];
 	        this.voice = source["voice"];
+	        this.cloneAudioData = source["cloneAudioData"];
 	        this.style = source["style"];
 	        this.optimizeTextPreview = source["optimizeTextPreview"];
 	    }
 	}
 	export class TTSRequest {
+	    requestId: string;
 	    text: string;
 	    model: string;
 	    voice: string;
+	    cloneAudioData?: string;
 	    style: string;
-	    outputDir: string;
 	    optimizeTextPreview: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -182,11 +185,12 @@ export namespace desktop {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requestId = source["requestId"];
 	        this.text = source["text"];
 	        this.model = source["model"];
 	        this.voice = source["voice"];
+	        this.cloneAudioData = source["cloneAudioData"];
 	        this.style = source["style"];
-	        this.outputDir = source["outputDir"];
 	        this.optimizeTextPreview = source["optimizeTextPreview"];
 	    }
 	}

@@ -11,7 +11,7 @@ import (
 
 const (
 	githubOwner = "igeekfan"
-	githubRepo  = "TTS"
+	githubRepo  = "mimo-tts-client"
 )
 
 func compareVersion(v1, v2 string) int {
@@ -44,6 +44,9 @@ func (s *Service) CheckForUpdate() (UpdateInfo, error) {
 		return UpdateInfo{HasUpdate: false, CurrentVersion: currentVersion}, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return UpdateInfo{HasUpdate: false, CurrentVersion: currentVersion}, fmt.Errorf("github releases API returned %s", resp.Status)
+	}
 
 	var data map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {

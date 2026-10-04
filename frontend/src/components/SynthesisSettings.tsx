@@ -1,4 +1,4 @@
-import {useState, useCallback, useMemo} from 'react'
+import {useState, useCallback, useEffect, useMemo, useRef} from 'react'
 import {useI18n} from '../i18n/context'
 import {ModelType} from '../types'
 import {PRESET_VOICES, VOICE_DESIGN_EXAMPLES, STYLE_PRESETS, DIRECTOR_MODE_EXAMPLES} from '../lib/constants'
@@ -14,11 +14,22 @@ import {Trash2, Download, AlertTriangle, ChevronDown, Loader2} from 'lucide-reac
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
+function activateOnKeyboard(event: React.KeyboardEvent, action: () => void) {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        action()
+    }
+}
+
 interface SynthesisSettingsProps {
     model: ModelType
     setModel: (model: ModelType) => void
     voice: string
     setVoice: (voice: string) => void
+    cloneFileName: string
+    setCloneFileName: (name: string) => void
+    cloneAudioData: string
+    setCloneAudioData: (data: string) => void
     style: string
     setStyle: (style: string) => void
     directorMode: boolean
@@ -39,6 +50,7 @@ interface SynthesisSettingsProps {
 
 export default function SynthesisSettings({
     model, setModel, voice, setVoice, style, setStyle,
+    cloneFileName, setCloneFileName, cloneAudioData, setCloneAudioData,
     directorMode, setDirectorMode, directorRole, setDirectorRole,
     directorScene, setDirectorScene, directorDirection, setDirectorDirection,
     optimizeTextPreview, setOptimizeTextPreview,
@@ -47,46 +59,88 @@ export default function SynthesisSettings({
 }: SynthesisSettingsProps) {
     const {t} = useI18n()
     const [styleOpen, setStyleOpen] = useState(false)
-    const [cloneFileName, setCloneFileName] = useState('')
     const [cloneLoading, setCloneLoading] = useState(false)
     const [cloneError, setCloneError] = useState('')
+    const cloneInputRef = useRef<HTMLInputElement>(null)
+    const fileReadVersionRef = useRef(0)
+    const fileReaderRef = useRef<FileReader | null>(null)
+    const fileReadFrameRef = useRef<number | null>(null)
+
+    const cancelPendingFileRead = useCallback(() => {
+        fileReadVersionRef.current++
+        if (fileReadFrameRef.current !== null) {
+            cancelAnimationFrame(fileReadFrameRef.current)
+            fileReadFrameRef.current = null
+        }
+        if (fileReaderRef.current?.readyState === FileReader.LOADING) fileReaderRef.current.abort()
+        fileReaderRef.current = null
+    }, [])
+
+    useEffect(() => cancelPendingFileRead, [cancelPendingFileRead])
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
+        cancelPendingFileRead()
+        const readVersion = fileReadVersionRef.current
 
         // 检查文件大小
         if (file.size > MAX_FILE_SIZE) {
             setCloneError(t('voice.fileTooLarge'))
+            setCloneFileName('')
+            setCloneAudioData('')
+            setCloneLoading(false)
             return
         }
 
         setCloneError('')
         setCloneLoading(true)
         setCloneFileName(file.name)
+        setCloneAudioData('')
 
         // 使用 requestAnimationFrame 避免阻塞 UI
-        requestAnimationFrame(() => {
+        fileReadFrameRef.current = requestAnimationFrame(() => {
+            fileReadFrameRef.current = null
             const reader = new FileReader()
+            fileReaderRef.current = reader
             reader.onload = () => {
-                const base64 = (reader.result as string).split(',')[1]
-                setVoice(`data:${file.type || 'audio/mpeg'};base64,${base64}`)
+                if (fileReadVersionRef.current !== readVersion) return
+                fileReaderRef.current = null
+                const data = typeof reader.result === 'string' ? reader.result : ''
+                if (!data) {
+                    setCloneError(t('voice.readFileError'))
+                    setCloneFileName('')
+                }
+                setCloneAudioData(data)
                 setCloneLoading(false)
             }
             reader.onerror = () => {
+                if (fileReadVersionRef.current !== readVersion) return
+                fileReaderRef.current = null
                 setCloneError(t('voice.readFileError'))
                 setCloneLoading(false)
                 setCloneFileName('')
+                setCloneAudioData('')
             }
             reader.readAsDataURL(file)
         })
-    }, [t, setVoice])
+    }, [cancelPendingFileRead, t, setCloneAudioData, setCloneFileName])
 
     const handleClearFile = useCallback(() => {
-        setVoice('')
+        cancelPendingFileRead()
         setCloneFileName('')
+        setCloneAudioData('')
+        setCloneLoading(false)
         setCloneError('')
-    }, [setVoice])
+        if (cloneInputRef.current) cloneInputRef.current.value = ''
+    }, [cancelPendingFileRead, setCloneAudioData, setCloneFileName])
+
+    const handleModelChange = useCallback((value: string) => {
+        const nextModel = value as ModelType
+        setModel(nextModel)
+        setVoice(nextModel === 'mimo-v2.5-tts' ? 'mimo_default' : '')
+        handleClearFile()
+    }, [handleClearFile, setModel, setVoice])
 
     // 预置风格按分类分组，仅在 model / 语言变化时重算
     const styleGroups = useMemo(() => {
@@ -109,7 +163,7 @@ export default function SynthesisSettings({
                 {/* 模型选择 */}
                 <div className="space-y-1">
                     <Label className="text-[11px] font-medium">{t('model')}</Label>
-                    <Select value={model} onValueChange={v => { setModel(v as ModelType); setVoice(v === 'mimo-v2.5-tts' ? 'mimo_default' : ''); setCloneFileName('') }}>
+                    <Select value={model} onValueChange={handleModelChange}>
                         <SelectTrigger className="h-7 text-xs w-full">
                             <SelectValue placeholder={t('model.select')} />
                         </SelectTrigger>
@@ -147,8 +201,9 @@ export default function SynthesisSettings({
                 {model === 'mimo-v2.5-tts-voicedesign' && (
                     <div className="space-y-2">
                         <div className="space-y-1">
-                            <Label className="text-[11px] font-medium">{t('voice.description')}</Label>
+                            <Label htmlFor="voice-description" className="text-[11px] font-medium">{t('voice.description')}</Label>
                             <textarea
+                                id="voice-description"
                                 className="flex min-h-[50px] w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 resize-none transition-colors"
                                 value={voice}
                                 onChange={e => setVoice(e.target.value)}
@@ -167,7 +222,11 @@ export default function SynthesisSettings({
                                                 ? 'hover:bg-primary/80'
                                                 : 'hover:bg-accent hover:text-accent-foreground'
                                         }`}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-pressed={voice === ex}
                                         onClick={() => setVoice(voice === ex ? '' : ex)}
+                                        onKeyDown={event => activateOnKeyboard(event, () => setVoice(voice === ex ? '' : ex))}
                                     >
                                         {ex.length > 12 ? ex.slice(0, 12) + '...' : ex}
                                     </Badge>
@@ -192,9 +251,11 @@ export default function SynthesisSettings({
                 {model === 'mimo-v2.5-tts-voiceclone' && (
                     <div className="space-y-2">
                         <div className="space-y-1">
-                            <Label className="text-[11px] font-medium">{t('voice.audioSample')}</Label>
+                            <Label htmlFor="clone-audio-input" className="text-[11px] font-medium">{t('voice.audioSample')}</Label>
                             <div className="flex items-center gap-1">
                                 <Input
+                                    id="clone-audio-input"
+                                    ref={cloneInputRef}
                                     type="file"
                                     accept="audio/mp3,audio/wav,audio/mpeg"
                                     className="flex-1 h-7 text-xs py-0 file:py-0.5"
@@ -202,7 +263,7 @@ export default function SynthesisSettings({
                                     onChange={handleFileChange}
                                 />
                                 {cloneFileName && (
-                                    <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" disabled={cloneLoading} onClick={handleClearFile}>
+                                    <Button aria-label={t('common.clear')} variant="outline" size="icon" className="h-7 w-7 shrink-0" disabled={cloneLoading} onClick={handleClearFile}>
                                         <Trash2 className="w-3 h-3" />
                                     </Button>
                                 )}
@@ -221,6 +282,9 @@ export default function SynthesisSettings({
                                     <Download className="w-2.5 h-2.5" />
                                     <span className="truncate">{cloneFileName}</span>
                                 </p>
+                            )}
+                            {!cloneAudioData && !cloneLoading && !cloneError && (
+                                <p className="text-[10px] text-muted-foreground">{t('voice.cloneRequired')}</p>
                             )}
                         </div>
                         <p className="text-[10px] text-muted-foreground/60">
@@ -297,7 +361,11 @@ export default function SynthesisSettings({
                                                                     ? 'hover:bg-primary/80'
                                                                     : 'hover:bg-accent hover:text-accent-foreground'
                                                             }`}
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            aria-pressed={style === s.value}
                                                             onClick={() => setStyle(style === s.value ? '' : s.value)}
+                                                            onKeyDown={event => activateOnKeyboard(event, () => setStyle(style === s.value ? '' : s.value))}
                                                         >
                                                             {s.label}
                                                         </Badge>
@@ -330,11 +398,16 @@ export default function SynthesisSettings({
                                                                 ? 'hover:bg-primary/80'
                                                                 : 'hover:bg-accent hover:text-accent-foreground'
                                                         }`}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-pressed={style === s}
                                                         onClick={() => setStyle(style === s ? '' : s)}
+                                                        onKeyDown={event => activateOnKeyboard(event, () => setStyle(style === s ? '' : s))}
                                                     >
                                                         {s.length > 6 ? s.slice(0, 6) + '...' : s}
                                                     </Badge>
                                                     <Button
+                                                        aria-label={t('common.delete')}
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity"

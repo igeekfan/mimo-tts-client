@@ -26,6 +26,7 @@ const enUS: Record<string, string> = {
     'voice.loading': 'Loading...',
     'voice.fileTooLarge': 'File exceeds 10MB limit',
     'voice.readFileError': 'Failed to read file',
+    'voice.cloneRequired': 'Choose an audio sample first',
 
     // Style
     'style': 'Style',
@@ -43,6 +44,7 @@ const enUS: Record<string, string> = {
     'synthesis.synthesizing': 'Synthesizing...',
     'synthesis.streaming': 'Streaming...',
     'synthesis.completed': 'Synthesis completed',
+    'synthesis.error': 'Synthesis failed',
     'synthesis.enterText': 'Please enter text',
     'synthesis.cancelled': 'Synthesis cancelled',
     'synthesis.smartPolish': 'Smart Polish',
@@ -58,6 +60,9 @@ const enUS: Record<string, string> = {
     'history.loadMore': 'Load more',
     'history.firstHint': 'Start synthesizing your first voice',
     'history.loadingAudio': 'Loading audio...',
+    'history.expand': 'Expand task',
+    'history.collapse': 'Collapse task',
+    'history.audioLoadFailed': 'Failed to load audio; try again',
 
     // Settings
     'settings.title': 'Settings',
@@ -97,6 +102,14 @@ const enUS: Record<string, string> = {
     // Audio
     'audio.loading': 'Loading audio...',
     'audio.notAvailable': 'No audio available',
+    'audio.selectTask': 'Select a task to play audio',
+    'audio.play': 'Play audio',
+    'audio.stop': 'Stop playback',
+    'audio.seek': 'Playback position',
+    'audio.download': 'Download audio',
+
+    // Authentication
+    'auth.tokenPrompt': 'This server requires an access token:',
 
     // Tags
     'tags.emotion': 'Emotion',

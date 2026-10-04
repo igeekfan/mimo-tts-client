@@ -14,47 +14,75 @@ type App struct {
 	ctx     context.Context
 	service *core.Service
 
-	streamsMu sync.Mutex
-	streams   map[string]context.CancelFunc
+	requestsMu sync.Mutex
+	requests   map[string]context.CancelFunc
 }
 
 func NewApp(appVersion string) *App {
 	return &App{
-		service: core.NewService(appVersion),
-		streams: make(map[string]context.CancelFunc),
+		service:  core.NewService(appVersion),
+		requests: make(map[string]context.CancelFunc),
 	}
 }
 
-// registerStream stores the cancel func for an in-flight stream so it can be
-// cancelled later via CancelStream.
-func (a *App) registerStream(id string, cancel context.CancelFunc) {
-	a.streamsMu.Lock()
-	a.streams[id] = cancel
-	a.streamsMu.Unlock()
+// registerRequest stores the cancel func for any in-flight synthesis. IDs are
+// unique across ordinary and streaming requests so cancellation cannot target
+// the wrong operation.
+func (a *App) registerRequest(id string, cancel context.CancelFunc) error {
+	if !validRequestID(id) {
+		return fmt.Errorf("synthesis request id must contain 1-128 letters, digits, dots, underscores, or hyphens")
+	}
+	a.requestsMu.Lock()
+	defer a.requestsMu.Unlock()
+	if _, exists := a.requests[id]; exists {
+		return fmt.Errorf("synthesis request %q is already running", id)
+	}
+	a.requests[id] = cancel
+	return nil
 }
 
-// unregisterStream removes and cancels a stream's context, releasing resources.
-func (a *App) unregisterStream(id string) {
-	a.streamsMu.Lock()
-	if cancel, ok := a.streams[id]; ok {
-		delete(a.streams, id)
+func validRequestID(id string) bool {
+	if len(id) == 0 || len(id) > 128 {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		char := id[i]
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_' || char == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func (a *App) unregisterRequest(id string) {
+	a.requestsMu.Lock()
+	if cancel, ok := a.requests[id]; ok {
+		delete(a.requests, id)
 		cancel()
 	}
-	a.streamsMu.Unlock()
+	a.requestsMu.Unlock()
 }
 
-// CancelStream aborts an in-flight streaming synthesis by its stream id.
-func (a *App) CancelStream(streamID string) {
-	a.streamsMu.Lock()
-	cancel, ok := a.streams[streamID]
-	a.streamsMu.Unlock()
+// CancelSynthesis aborts an ordinary or streaming synthesis by request ID.
+func (a *App) CancelSynthesis(requestID string) {
+	a.requestsMu.Lock()
+	cancel, ok := a.requests[requestID]
+	a.requestsMu.Unlock()
 	if ok {
 		cancel()
 	}
 }
 
+// CancelStream remains as a compatibility alias for older desktop clients.
+func (a *App) CancelStream(streamID string) { a.CancelSynthesis(streamID) }
+
 func OnStartup(app *App) func(context.Context) {
 	return app.startup
+}
+
+func OnShutdown(app *App) func(context.Context) {
+	return app.shutdown
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -65,7 +93,25 @@ func (a *App) startup(ctx context.Context) {
 			wailsRuntime.EventsEmit(a.ctx, "app:log", msg)
 		},
 	})
-	_ = a.service.Startup()
+	if err := a.service.Startup(); err != nil {
+		a.emitLog("service startup failed: %v", err)
+	}
+}
+
+func (a *App) shutdown(_ context.Context) {
+	a.requestsMu.Lock()
+	cancels := make([]context.CancelFunc, 0, len(a.requests))
+	for id, cancel := range a.requests {
+		delete(a.requests, id)
+		cancels = append(cancels, cancel)
+	}
+	a.requestsMu.Unlock()
+	for _, cancel := range cancels {
+		cancel()
+	}
+	if err := a.service.Shutdown(); err != nil {
+		a.emitLog("service shutdown failed: %v", err)
+	}
 }
 
 func (a *App) emitLog(format string, args ...interface{}) {
