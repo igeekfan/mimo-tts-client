@@ -57,12 +57,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.25.13'
           cache: true
 
       - name: Install wails
         shell: bash
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
       - name: Install Ubuntu prerequisites
         shell: bash
@@ -77,16 +77,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Build frontend assets
+      - name: Use pinned npm
+        run: npm install --global npm@11.12.1
+
+      - name: Prepare release build
         shell: bash
         run: |
-          npm install -g npm@9
           jq '.info.productVersion = "${{ steps.normalise_version.outputs.version }}"' wails.json > tmp.json
           mv tmp.json wails.json
           cd frontend
-          jq '.version = "${{ steps.normalise_version.outputs.version }}"' package.json > tmp.json
-          mv tmp.json package.json
-          npm install
+          npm ci
 
       - name: Build wails app for Linux
         shell: bash
@@ -157,6 +157,10 @@ jobs:
           cp -r $build_dir/usr/share/icons/hicolor/512x512/apps/${APP_NAME}.png AppDir/usr/share/icons/hicolor/512x512/apps/
           cp $build_dir/usr/local/bin/${APP_NAME} AppDir/usr/bin/
 
+          # Debian uses an absolute system path; AppImage must launch the bundled binary.
+          sed -i "s#^Exec=/usr/local/bin/${APP_NAME}$#Exec=${APP_NAME}#" \
+            $build_dir/usr/share/applications/${APP_NAME}.desktop
+
           curl -o linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
           chmod +x linuxdeploy-plugin-gtk.sh
 
@@ -174,14 +178,14 @@ jobs:
           APP_NAME="mimo-tts-client"
           mv build/linux/${APP_NAME}_${{ steps.normalise_version.outputs.version }}_amd64.deb \
              build/linux/${APP_NAME}_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.deb
-          # AppImage name varies by desktop file Name field; find it by glob
-          APPIMAGE_FILE=$(ls -1 *.AppImage 2>/dev/null | head -1)
-          if [ -n "$APPIMAGE_FILE" ]; then
-            mv "$APPIMAGE_FILE" \
-               ${APP_NAME}_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.AppImage
-          else
-            echo "Warning: no AppImage file found to rename" >&2
+          # AppImage name varies by desktop file Name field; find it by glob.
+          APPIMAGE_FILE=$(find . -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          if [ -z "$APPIMAGE_FILE" ]; then
+            echo "No AppImage file was produced" >&2
+            exit 1
           fi
+          mv "$APPIMAGE_FILE" \
+             ${APP_NAME}_${{ steps.normalise_version.outputs.version }}_x86_64.AppImage
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -189,5 +193,5 @@ jobs:
           tag_name: v${{ steps.normalise_version.outputs.version }}
           files: |
             ./build/linux/mimo-tts-client_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.deb
-            mimo-tts-client_${{ steps.normalise_version.outputs.version }}_${{ steps.normalise_platform.outputs.tag }}.AppImage
+            mimo-tts-client_${{ steps.normalise_version.outputs.version }}_x86_64.AppImage
           token: ${{ secrets.GITHUB_TOKEN }}
