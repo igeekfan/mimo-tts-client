@@ -87,7 +87,7 @@ Wails Bind  fetch/SSE
 ### 历史记录
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/history` | 获取历史（最多 50 条） |
+| GET | `/api/history` | 获取历史（默认最多 50 条，数据库最多保留 200 条） |
 | POST | `/api/history` | 保存记录 |
 | GET | `/api/history/search?q=&offset=&limit=` | 搜索（分页） |
 | GET | `/api/history/audio?id=` | 获取音频数据 |
@@ -102,7 +102,7 @@ Wails Bind  fetch/SSE
 
 ---
 
-## 待实现
+## 功能规划与完成状态
 
 ### 风格预设补全
 - [x] 补充 API 文档中缺失的风格分类与预设值
@@ -132,33 +132,45 @@ API 支持在 `assistant` content 中嵌入 `[标签]` 实现细粒度控制：
 
 ---
 
-## 待修复问题 TODO（2026-07-01 代码审查）
+## 已完成的安全与可靠性审查（2026-07-01）
 
-> 按优先级排序。分析自代码静态审查，落地前建议逐条复现确认。
+> 以下项目已经实现，并通过单元测试、HTTP 合同测试或本地构建验证。
 >
-> **状态：以下全部已实现（2026-07-01）。** 新增环境变量 `TTS_WEB_TOKEN`、
-> `TTS_CORS_ORIGIN`（见 AGENTS.md 环境变量表）；新增 Go 单元测试与 `.golangci.yml`
-> + CI 工作流（`.github/workflows/ci.yml`）。
+> Web 鉴权使用 `TTS_WEB_TOKEN`，跨域使用 `TTS_CORS_ORIGIN`；静态检查和 CI 配置位于
+> `.golangci.yml` 与 `.github/workflows/ci.yml`。
 
 ### P0 — 安全（Web 模式）
-- [x] **API Key 明文泄露**：`GET /api/settings` 直接返回 `apiKey` 字段（`internal/httpapi/server.go:67`）。任何能访问 Web 服务的人都能读到密钥。应在 Web 模式下对返回的 settings 做脱敏（掩码或省略 `apiKey`），保存时保留原值。
-- [x] **Web 模式无任何鉴权**：`/api/*`（合成、历史、设置）全部公开。Docker/远程部署时等于开放代理，会消耗用户 API 配额。至少提供可选的 token / basic auth（如 `TTS_WEB_TOKEN` 环境变量）。
-- [x] **API Key 明文落库**：`SettingsRecord.ApiKey` 未加密存储于 `settings.db`（`internal/core/db.go:13`）。考虑加密或改为仅从环境变量读取。
+- [x] **API Key 明文泄露**：Web 设置响应由 `internal/httpapi/server.go` 脱敏，保存时保留服务端密钥。
+- [x] **Web 模式鉴权**：`TTS_WEB_TOKEN` 保护 `/api/*`；非回环监听要求至少 16 个字符的令牌。
+- [x] **API Key 明文落库**：`internal/core/crypto.go` 使用 AES-GCM 加密当前格式的密钥，损坏密钥文件不会被覆盖。
 
 ### P1 — 可靠性与资源
-- [x] **HTTP 客户端无超时**：`tts.go` 两处 `client := &http.Client{}`（`:144`、`:239`）无 `Timeout`，上游卡住会永久挂起。对照 `update.go:41` 已设 15s。合成请求应设置合理超时。
-- [x] **取消/中断未透传到上游**：`tts.go` 用 `http.NewRequest` 而非 `NewRequestWithContext`。前端已加 AbortSignal（web）与取消按钮，但后端不会真正中止对 MiMo API 的请求 → 配额浪费 + goroutine/连接泄漏。`server.go:handleSynthesizeStream` 也未监听 `r.Context().Done()`。应把请求 context 一路传到 `SynthesizeSpeech(Stream)`。
-- [x] **桌面流式合成无法取消**：`app_bindings.go:StartSynthesizeSpeechStream` 起了 goroutine 但没有停止机制，前端 desktop 分支的 AbortSignal 被忽略（`backend.ts:328`）。当前使用 requestId → cancel 注册表，普通与流式请求统一调用 `CancelSynthesis`。
-- [x] **历史音频无限增长**：音频 blob 全量存进 SQLite（`db.go:HistoryRecord.AudioData`），无条数/容量上限、无自动清理。长期使用 DB 会膨胀。增加保留上限或定期裁剪。
+- [x] **HTTP 客户端超时**：`internal/core/tts.go` 为普通请求和流式请求设置整体超时与响应头超时。
+- [x] **取消透传**：`SynthesizeSpeech`、`SynthesizeSpeechStream` 和 Web 请求均使用 request context；桌面端通过 `CancelSynthesis` 取消普通及流式请求。
+- [x] **历史音频无限增长**：`internal/core/history.go` 限制最多 200 条、单条 50 MiB、总音频 512 MiB，并在事务内裁剪。
 
 ### P2 — 一致性与健壮性
 - [x] **后端错误信息硬编码中文**：`tts.go` 中 "API Key 未配置" "API 错误" 等（`:90`、`:159` 等）绕过了 i18n，英文界面下会露出中文。应走 `i18n` 或返回错误码由前端翻译。
-- [x] **`fmt.Sscanf` 忽略解析错误**：`server.go` 解析 `id/offset/limit`（`:222`、`:254`）忽略返回值，非法输入会静默变成 0。改用 `strconv` 并校验。
-- [x] **EventHub 丢消息竞争**：`events.go:Emit` 在 `RLock` 下从 channel 读取（drain）以腾位（`:42`），并发 Emit 时存在竞争且会丢最旧消息。评估是否改为每订阅者独立 goroutine 或加大缓冲/换写锁。
-- [x] **CORS 源为空串**：Web 模式默认 `corsOrigin=""`（`main_web.go:20`），`Access-Control-Allow-Origin` 被设为空值。明确策略（同源不设该头，或改为可配置）。
+- [x] **HTTP 参数校验**：`internal/httpapi/server.go` 使用严格整数解析，非法 `id/offset/limit` 返回 400。
+- [x] **EventHub 并发安全**：`internal/httpapi/events.go` 使用写锁保护发送、丢弃和取消订阅。
+- [x] **CORS 策略**：默认同源请求不发送 CORS 头，仅在配置 `TTS_CORS_ORIGIN` 且来源匹配时发送。
 
 ### P3 — 工程质量
 - [x] **缺少 linter**：无 `golangci-lint` 配置，`frontend/package.json` 无 `lint` 脚本（仅 tsc）。补充静态检查并接入 CI。
 - [x] **单元测试覆盖不足**：`tts_test.go` 仅有需真实 API key 的集成测试。为纯函数补测：`buildMessages`（各模型分支）、`addWavHeader`、SSE 解析（`backend.ts:parseSseEvent`）、`GetSettings` 默认值合并。
 - [x] **冗余 `min` 函数**：`tts.go:289` 自定义 `min` 遮蔽了 Go 1.21+ 内置且未被引用，可删除。
-- [x] **文档已过期**：`AGENTS.md` / 本文件的目录结构仍写 "单个 App.tsx + 单个 App.css"，实际前端已拆分为 `components/`、`hooks/`、`lib/`（含 `api_client.ts` 等）。更新目录树描述。
+- [x] **文档结构**：`AGENTS.md`、本文件和 README 已按当前 `components/`、`hooks/`、`lib/` 结构更新。
+
+## 发布验收状态
+
+- [x] `go test ./...`、`go test -tags web ./...`
+- [x] `go vet ./...`、`go vet -tags web ./...`、`gofmt -l .`
+- [x] `go build ./...`、`go build -tags web ./...`
+- [x] `frontend`: `npm test`、`npm run lint`、`npm run build`
+- [x] Windows Wails 生产构建
+- [x] `v0.0.6` Release 已发布，Windows 与 Linux 产物已上传
+- [ ] Docker 本地构建验证（需要运行中的 Docker daemon）
+- [ ] `go test -race`（当前环境缺少 gcc/cgo）
+- [ ] 真实 MiMo API 三种模型 E2E（需要 API Key，并可能产生费用）
+- [ ] macOS 签名、公证和安装验证
+- [ ] 浏览器实际交互与截图验收

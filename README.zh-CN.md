@@ -4,6 +4,8 @@
 
 基于 [MiMo-V2.5-TTS](https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/multimodal-understanding/speech-synthesis-v2.5) 的跨平台桌面端语音合成客户端。采用 Go + Wails + React 技术栈。
 
+当前版本：[v0.0.6](https://github.com/igeekfan/mimo-tts-client/releases/tag/v0.0.6)。
+
 ## 功能特性
 
 - **三种合成模型**：预置音色、音色设计（文本描述生成音色）、音色复刻（音频样本复刻音色）
@@ -14,7 +16,7 @@
 - **音色复刻**：从音频样本克隆音色
 - **流式输出**：低延迟 PCM16 实时音频流，支持播放/暂停/取消
 - **音频播放器**：进度条、拖动、音量控制、播放/暂停/停止
-- **合成历史**：持久化存储，支持播放、下载、删除
+- **合成历史**：持久化存储，支持播放、下载、删除，并限制最多 200 条记录、总音频 512 MiB
 - **风格历史**：最近使用的风格标签，方便快速复用
 - **深色/浅色主题**：手动切换主题
 - **中英双语界面**：设置自动保存/恢复
@@ -117,6 +119,8 @@ docker run -p 8080:8080 \
 
 Web API 不会返回保存的 API Key 或音色复刻参考音频；API Key 会加密落盘。
 
+Web API 使用严格 JSON 结构和输入大小限制。桌面端和 Web 端都支持取消合成，并会将取消传递到上游请求。Web 模式默认只允许同源访问；只有确实需要跨域客户端时才配置 `TTS_CORS_ORIGIN`。
+
 ## 技术栈
 
 - **后端**：Go, Wails v2, GORM + SQLite
@@ -126,6 +130,8 @@ Web API 不会返回保存的 API Key 或音色复刻参考音频；API Key 会�
 ## 项目结构
 
 详见 [PLAN.md](PLAN.md) 项目结构和开发计划。
+
+自动化检查覆盖 Go 单元/合同测试、Web 模式测试、前端 Vitest、TypeScript 检查、Vite 生产构建和 Windows Wails 构建。真实 MiMo API、Docker daemon、本地 macOS 签名/公证和浏览器交互验收仍需在对应发布环境验证。
 
 ## 许可证
 

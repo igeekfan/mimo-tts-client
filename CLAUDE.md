@@ -21,12 +21,16 @@ docker build -t tts . && docker run -p 8080:8080 -e TTS_API_KEY=key -e TTS_WEB_T
 # Go
 go build ./...                                # NOTE: default build tag = desktop (main.go), not web
 go vet ./...
-go test ./...                                 # unit tests live in internal/core/tts_test.go
+go test ./...                                 # desktop-mode unit and contract tests
+go test -tags web ./...                      # Web-mode build-tag tests
 go test ./internal/core -run TestSynthesizeSpeech   # single test
+go vet ./...; go vet -tags web ./...
 
 # Frontend (from frontend/)
 npm ci
 npm run build                                 # tsc type-check THEN vite build
+npm test                                      # Vitest unit and contract tests
+npm run lint                                  # TypeScript check
 npm run dev                                   # Vite only (no Go backend)
 ```
 
@@ -81,6 +85,10 @@ PCM into a playable WAV when the response isn't already `RIFF`.
 
 - SQLite via GORM, stored under `os.UserConfigDir()/mimo-tts-client` (`GetDataDir`). Holds settings
   and synthesis history (audio blobs included).
-- Settings auto-save on every change; API key and base URL are configurable in the UI or via env.
+- Settings auto-save on every change. Desktop users can configure the API key and base URL in the UI;
+  Web mode takes the upstream URL from trusted `TTS_BASE_URL` and does not allow clients to change it.
+- API keys use the current AES-GCM encrypted storage format. Do not add plaintext or legacy-format fallbacks.
+- History retention is bounded at 200 records and 512 MiB of total audio, with a 50 MiB per-audio limit.
+- Desktop cancellation uses the single `CancelSynthesis(requestId)` binding for ordinary and streaming requests.
 - All user-facing strings are i18n'd (zh-CN / en-US) on both backend (`core/i18n.go`) and frontend
   (`useI18n()` hook). Add new strings to both locale files.

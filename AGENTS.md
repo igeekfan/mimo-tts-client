@@ -51,7 +51,11 @@ Both modes share the same core business logic in `internal/core/`.
 │   ├── core/            # All business logic (shared by desktop & web)
 │   │   ├── service.go   # Service struct, startup, hooks, env vars
 │   │   ├── tts.go       # MiMo TTS API integration
+│   │   ├── history.go   # History CRUD and retention limits
 │   │   ├── settings.go  # Settings CRUD (SQLite via GORM)
+│   │   ├── crypto.go    # API key encryption
+│   │   ├── update.go    # Update checks
+│   │   ├── about.go     # Application metadata
 │   │   ├── i18n.go      # Backend i18n
 │   │   ├── db.go        # Database setup
 │   │   └── types.go     # Shared type definitions
@@ -74,7 +78,7 @@ Both modes share the same core business logic in `internal/core/`.
 │   │   │   ├── runtime.ts    # Dual-mode event system (Wails events / SSE)
 │   │   │   ├── webAuth.ts    # Web-mode token auth (TTS_WEB_TOKEN)
 │   │   │   └── ...           # audioUtils, formatUtils, constants, contexts
-│   │   ├── styles/ theme.css # Styles are split across styles/, theme.css, App.css
+│   │   ├── styles/           # Shared theme and component styles
 │   │   └── i18n/
 │   │       ├── context.tsx   # useI18n hook
 │   │       ├── zh-CN.ts      # Chinese translations
@@ -112,6 +116,7 @@ Both modes share the same core business logic in `internal/core/`.
 | `npm run dev` | Start Vite dev server only |
 | `npm run build` | Type-check (`tsc`) then build with Vite |
 | `npm run lint` | Type-check only (`tsc --noEmit`) |
+| `npm test` | Run Vitest unit and contract tests |
 
 ### Lint (Go)
 | Command | Description |
@@ -153,7 +158,7 @@ Both modes share the same core business logic in `internal/core/`.
 - **Formatting**: No semicolons at end of statements.
 - **Components**: Functional components with hooks.
 - **State**: Use `useState` hook.
-- **CSS**: Single `App.css` file with CSS variables.
+- **CSS**: Use the existing component styles, `theme.css`, and Tailwind/shadcn primitives.
 - **Backend calls**: Import from `../lib/backend`. Do NOT import from `wailsjs/`.
 
 ## Key Conventions

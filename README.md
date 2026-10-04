@@ -4,6 +4,8 @@
 
 A cross-platform desktop TTS (Text-to-Speech) client powered by [MiMo-V2.5-TTS](https://mimo.mi.com/docs/zh-CN/quick-start/usage-guide/multimodal-understanding/speech-synthesis-v2.5). Built with Go + Wails + React.
 
+Current release: [v0.0.6](https://github.com/igeekfan/mimo-tts-client/releases/tag/v0.0.6).
+
 ## Features
 
 - **Three synthesis models**: Preset voices, voice design (text-to-voice), voice clone (audio-to-voice)
@@ -14,7 +16,7 @@ A cross-platform desktop TTS (Text-to-Speech) client powered by [MiMo-V2.5-TTS](
 - **Voice clone**: Clone a voice from audio samples
 - **Streaming output**: Low-latency real-time PCM16 audio streaming with play/pause/cancel
 - **Audio player**: Progress bar, seek, volume control, play/pause/stop
-- **Synthesis history**: Persistent storage with play, download, and delete
+- **Synthesis history**: Persistent storage with play, download, delete, and bounded retention (up to 200 records / 512 MiB total audio)
 - **Style history**: Recently used style tags for quick reuse
 - **Dark/Light theme**: Manual theme switching
 - **Bilingual UI**: Chinese and English interface, auto-save settings
@@ -117,6 +119,8 @@ Put a TLS reverse proxy in front of the container for remote use. The container 
 
 The web API never returns the stored API key or voice-clone reference audio. The API key is encrypted at rest.
 
+Web API requests use strict JSON schemas and input limits. Desktop and Web synthesis both support cancellation, including propagation to the upstream request. The Web API defaults to same-origin access; configure `TTS_CORS_ORIGIN` only when a specific cross-origin client is required.
+
 ## Tech Stack
 
 - **Backend**: Go, Wails v2, GORM + SQLite
@@ -126,6 +130,8 @@ The web API never returns the stored API key or voice-clone reference audio. The
 ## Project Structure
 
 See [PLAN.md](PLAN.md) for detailed project structure and development plan.
+
+The automated checks cover Go unit/contract tests, Web-mode tests, frontend Vitest tests, TypeScript checking, Vite production builds, and Windows Wails builds. Real MiMo API calls, Docker daemon builds, macOS signing/notarization, and browser interaction QA remain release-environment checks.
 
 ## License
 
