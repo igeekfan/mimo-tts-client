@@ -1,8 +1,15 @@
 package core
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestGetSettingsDefaultsWithoutDB(t *testing.T) {
@@ -49,6 +56,52 @@ func TestSaveAndGetSettingsRoundTrip(t *testing.T) {
 	// The key is stored encrypted but must decrypt back to the original.
 	if got.ApiKey != "sk-roundtrip" {
 		t.Fatalf("ApiKey round trip = %q, want sk-roundtrip", got.ApiKey)
+	}
+}
+
+func TestOpenDBClosesHandleWhenMigrationFails(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("APPDATA", root)
+	t.Setenv("XDG_CONFIG_HOME", root)
+	t.Setenv("HOME", root)
+	appDir := filepath.Join(root, "mimo-tts-client")
+	if err := os.MkdirAll(appDir, 0700); err != nil {
+		t.Fatalf("create app dir: %v", err)
+	}
+	dbPath := filepath.Join(appDir, "settings.db")
+	seed, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatalf("open seed db: %v", err)
+	}
+	if err := seed.AutoMigrate(&SettingsRecord{}, &HistoryRecord{}); err != nil {
+		t.Fatalf("seed schema: %v", err)
+	}
+	records := make([]HistoryRecord, MaxHistoryRecords+1)
+	for i := range records {
+		records[i] = HistoryRecord{Text: "retention test"}
+	}
+	if err := seed.Create(&records).Error; err != nil {
+		t.Fatalf("seed history: %v", err)
+	}
+	if err := seed.Exec(`CREATE TRIGGER reject_history_delete BEFORE DELETE ON history_records BEGIN SELECT RAISE(ABORT, 'blocked migration'); END`).Error; err != nil {
+		t.Fatalf("create trigger: %v", err)
+	}
+	seedSQL, err := seed.DB()
+	if err != nil {
+		t.Fatalf("seed sql db: %v", err)
+	}
+	if err := seedSQL.Close(); err != nil {
+		t.Fatalf("close seed db: %v", err)
+	}
+
+	if _, err := openDB(); err == nil {
+		t.Fatal("openDB succeeded despite retention failure")
+	} else if !strings.Contains(err.Error(), "migration") && !strings.Contains(err.Error(), "blocked") {
+		t.Fatalf("unexpected migration error: %v", err)
+	}
+	moved := filepath.Join(appDir, fmt.Sprintf("settings-%d.db", os.Getpid()))
+	if err := os.Rename(dbPath, moved); err != nil {
+		t.Fatalf("database handle remained open after failed migration: %v", err)
 	}
 }
 

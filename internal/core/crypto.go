@@ -13,8 +13,7 @@ import (
 	"sync"
 )
 
-// encPrefix marks a value as encrypted so legacy plaintext can be detected and
-// migrated transparently on the next save.
+// encPrefix identifies the supported encrypted secret format.
 const encPrefix = "enc:v1:"
 
 var (
@@ -39,8 +38,17 @@ func secretKey() ([]byte, error) {
 			return
 		}
 		keyPath := filepath.Join(appDir, "secret.key")
-		if data, err := os.ReadFile(keyPath); err == nil && len(data) == 32 {
+		if data, err := os.ReadFile(keyPath); err == nil {
+			if len(data) != 32 {
+				encKeyErr = fmt.Errorf("secret key has invalid length %d", len(data))
+				return
+			}
 			encKey = data
+			return
+		} else if !os.IsNotExist(err) {
+			// Never replace a key that exists but cannot be read. Doing so would
+			// make all previously encrypted settings permanently undecryptable.
+			encKeyErr = fmt.Errorf("read secret key: %w", err)
 			return
 		}
 		key := make([]byte, 32)
@@ -79,11 +87,13 @@ func encryptSecret(plaintext string) (string, error) {
 	return encPrefix + base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// decryptSecret reverses encryptSecret. Values without the prefix are treated
-// as legacy plaintext and returned unchanged.
+// decryptSecret accepts only the current encrypted format or an empty value.
 func decryptSecret(stored string) (string, error) {
+	if stored == "" {
+		return "", nil
+	}
 	if !strings.HasPrefix(stored, encPrefix) {
-		return stored, nil
+		return "", fmt.Errorf("unsupported secret format")
 	}
 	key, err := secretKey()
 	if err != nil {

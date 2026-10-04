@@ -131,7 +131,6 @@ declare global {
             style: string
             optimizeTextPreview: boolean
           }): Promise<void>
-          CancelStream(streamId: string): Promise<void>
           GetHistory(): Promise<HistoryItem[]>
           SearchHistory(query: string, offset: number, limit: number): Promise<{items: HistoryItem[]; total: number; offset: number; limit: number}>
           SaveHistory(req: {
@@ -297,7 +296,7 @@ async function* synthesizeSpeechStreamDesktop(
   })
 
   const onAbort = () => {
-    void desktop.CancelStream?.(streamId)
+    void desktop.CancelSynthesis(streamId)
   }
 
   try {
@@ -505,7 +504,8 @@ export async function* SynthesizeSpeechStream(
     if (parsed.data === '[DONE]') return {kind: 'done'}
     try {
       return {kind: 'chunk', data: validatePCM16Chunk(decodeBase64ToBytes(parsed.data), res.status, 'SSE')}
-    } catch {
+    } catch (error) {
+      if (error instanceof BackendError) throw error
       throw new BackendError('Backend returned invalid stream audio', res.status, 'SSE_INVALID_DATA')
     }
   }

@@ -148,7 +148,7 @@ API 支持在 `assistant` content 中嵌入 `[标签]` 实现细粒度控制：
 ### P1 — 可靠性与资源
 - [x] **HTTP 客户端无超时**：`tts.go` 两处 `client := &http.Client{}`（`:144`、`:239`）无 `Timeout`，上游卡住会永久挂起。对照 `update.go:41` 已设 15s。合成请求应设置合理超时。
 - [x] **取消/中断未透传到上游**：`tts.go` 用 `http.NewRequest` 而非 `NewRequestWithContext`。前端已加 AbortSignal（web）与取消按钮，但后端不会真正中止对 MiMo API 的请求 → 配额浪费 + goroutine/连接泄漏。`server.go:handleSynthesizeStream` 也未监听 `r.Context().Done()`。应把请求 context 一路传到 `SynthesizeSpeech(Stream)`。
-- [x] **桌面流式合成无法取消**：`app_bindings.go:StartSynthesizeSpeechStream` 起了 goroutine 但没有停止机制，前端 desktop 分支的 AbortSignal 被忽略（`backend.ts:328`）。需要 streamId → cancel 的注册表 + `CancelStream` 绑定方法。
+- [x] **桌面流式合成无法取消**：`app_bindings.go:StartSynthesizeSpeechStream` 起了 goroutine 但没有停止机制，前端 desktop 分支的 AbortSignal 被忽略（`backend.ts:328`）。当前使用 requestId → cancel 注册表，普通与流式请求统一调用 `CancelSynthesis`。
 - [x] **历史音频无限增长**：音频 blob 全量存进 SQLite（`db.go:HistoryRecord.AudioData`），无条数/容量上限、无自动清理。长期使用 DB 会膨胀。增加保留上限或定期裁剪。
 
 ### P2 — 一致性与健壮性

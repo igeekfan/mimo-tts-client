@@ -240,7 +240,7 @@ func historyMetadataQuery(db *gorm.DB) *gorm.DB {
 		text,
 		model,
 		CASE
-			WHEN lower(ltrim(voice, ?)) LIKE ? THEN ?
+			WHEN lower(ltrim(voice, ?)) LIKE ? THEN ''
 			WHEN length(CAST(voice AS BLOB)) > ? THEN ''
 			ELSE voice
 		END AS voice,
@@ -252,7 +252,6 @@ func historyMetadataQuery(db *gorm.DB) *gorm.DB {
 		projection,
 		sqliteWhitespace,
 		"data:%",
-		legacyCloneVoiceLabel,
 		maxHistoryVoiceBytes,
 	)
 }
@@ -261,9 +260,7 @@ func historyItems(records []historyMetadataRecord) []HistoryItem {
 	items := make([]HistoryItem, len(records))
 	for i, record := range records {
 		voice := record.Voice
-		if isDataURI(voice) {
-			voice = legacyCloneVoiceLabel
-		} else if len(voice) > maxHistoryVoiceBytes {
+		if isDataURI(voice) || len(voice) > maxHistoryVoiceBytes {
 			voice = ""
 		}
 		items[i] = HistoryItem{

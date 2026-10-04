@@ -149,6 +149,76 @@ func TestSynthesizeSpeechUsesLockedBaseURLAndAPIKey(t *testing.T) {
 	}
 }
 
+func TestSynthesizeSpeechHonorsContextCancellation(t *testing.T) {
+	t.Setenv("TTS_API_KEY", "test-api-key")
+	started := make(chan struct{})
+	upstreamCanceled := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	handlerDone := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		close(started)
+		select {
+		case <-releaseHandler:
+		default:
+			select {
+			case <-r.Context().Done():
+				close(upstreamCanceled)
+			case <-releaseHandler:
+			}
+		}
+		close(handlerDone)
+	}))
+	defer func() {
+		cancel()
+		close(releaseHandler)
+		upstream.CloseClientConnections()
+		select {
+		case <-handlerDone:
+		case <-time.After(time.Second):
+		}
+		upstream.Close()
+	}()
+
+	s := NewService("test")
+	if err := s.LockBaseURL(upstream.URL); err != nil {
+		t.Fatalf("LockBaseURL: %v", err)
+	}
+	result := make(chan error, 1)
+	go func() {
+		_, _, err := s.SynthesizeSpeech(ctx, SynthesisRequest{
+			Text: "hello", Model: ModelPreset, Voice: "mimo_default",
+		})
+		result <- err
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("upstream did not receive synthesis request")
+	}
+	cancel()
+
+	select {
+	case err := <-result:
+		if err == nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("SynthesizeSpeech error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("SynthesizeSpeech did not return after cancellation")
+	}
+	select {
+	case <-upstreamCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("request context cancellation did not reach upstream")
+	}
+}
+
 func TestSynthesisClientRejectsRedirects(t *testing.T) {
 	redirected := false
 	destination := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
@@ -180,15 +250,29 @@ func TestSynthesisClientRejectsRedirects(t *testing.T) {
 
 func TestSynthesizeSpeechStreamHasOverallTimeout(t *testing.T) {
 	t.Setenv("TTS_API_KEY", "test-api-key")
+	releaseHandler := make(chan struct{})
+	handlerDone := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
 		if flusher, ok := w.(http.Flusher); ok {
 			flusher.Flush()
 		}
-		<-r.Context().Done()
+		select {
+		case <-r.Context().Done():
+		case <-releaseHandler:
+		}
+		close(handlerDone)
 	}))
-	defer upstream.Close()
+	defer func() {
+		close(releaseHandler)
+		upstream.CloseClientConnections()
+		select {
+		case <-handlerDone:
+		case <-time.After(time.Second):
+		}
+		upstream.Close()
+	}()
 
 	originalClient := streamClient
 	streamClient = newStreamClient(75 * time.Millisecond)
@@ -207,6 +291,75 @@ func TestSynthesizeSpeechStreamHasOverallTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed > time.Second {
 		t.Fatalf("stream timeout took %s", elapsed)
+	}
+}
+
+func TestSynthesizeSpeechStreamHonorsContextCancellation(t *testing.T) {
+	t.Setenv("TTS_API_KEY", "test-api-key")
+	started := make(chan struct{})
+	upstreamCanceled := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	handlerDone := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		close(started)
+		select {
+		case <-releaseHandler:
+		default:
+			select {
+			case <-r.Context().Done():
+				close(upstreamCanceled)
+			case <-releaseHandler:
+			}
+		}
+		close(handlerDone)
+	}))
+	defer func() {
+		cancel()
+		close(releaseHandler)
+		upstream.CloseClientConnections()
+		select {
+		case <-handlerDone:
+		case <-time.After(time.Second):
+		}
+		upstream.Close()
+	}()
+
+	s := NewService("test")
+	if err := s.LockBaseURL(upstream.URL); err != nil {
+		t.Fatalf("LockBaseURL: %v", err)
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- s.SynthesizeSpeechStream(ctx, SynthesisRequest{
+			Text: "hello", Model: ModelPreset, Voice: "mimo_default",
+		}, func([]byte) error { return nil })
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("upstream did not receive stream request")
+	}
+	cancel()
+
+	select {
+	case err := <-result:
+		if err == nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("SynthesizeSpeechStream error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("SynthesizeSpeechStream did not return after cancellation")
+	}
+	select {
+	case <-upstreamCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("stream request context cancellation did not reach upstream")
 	}
 }
 

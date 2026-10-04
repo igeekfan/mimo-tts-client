@@ -74,9 +74,6 @@ func (a *App) CancelSynthesis(requestID string) {
 	}
 }
 
-// CancelStream remains as a compatibility alias for older desktop clients.
-func (a *App) CancelStream(streamID string) { a.CancelSynthesis(streamID) }
-
 func OnStartup(app *App) func(context.Context) {
 	return app.startup
 }

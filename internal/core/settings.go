@@ -62,8 +62,7 @@ func (s *Service) GetSettings() Settings {
 	if isValidStoredString(rec.Model, maxSettingsModelBytes) && rec.Model != "" {
 		defaults.Model = rec.Model
 	}
-	// A migration removes legacy data URIs at startup. Keep this read-time
-	// guard as defence in depth for databases changed by an older process.
+	// Never expose invalid or sensitive voice payloads from storage.
 	if isValidStoredVoice(rec.Voice) && rec.Voice != "" {
 		defaults.Voice = rec.Voice
 	}

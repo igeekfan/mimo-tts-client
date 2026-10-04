@@ -42,40 +42,6 @@ func newTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestDatabaseMigrationRemovesLegacyVoiceDataURIs(t *testing.T) {
-	db := newTestDB(t)
-	if err := db.AutoMigrate(&SettingsRecord{}, &HistoryRecord{}); err != nil {
-		t.Fatalf("initial schema: %v", err)
-	}
-	settingsDataURI := "data:audio/wav;base64,U0VDUkVU"
-	historyDataURI := " \nDATA:audio/mpeg;base64,U0VDUkVUMg=="
-	if err := db.Create(&SettingsRecord{ID: 1, Voice: settingsDataURI}).Error; err != nil {
-		t.Fatalf("seed settings: %v", err)
-	}
-	if err := db.Create(&HistoryRecord{Text: "legacy", Voice: historyDataURI, AudioData: []byte{1}}).Error; err != nil {
-		t.Fatalf("seed history: %v", err)
-	}
-
-	if err := migrateDatabase(db); err != nil {
-		t.Fatalf("migrate database: %v", err)
-	}
-
-	var settings SettingsRecord
-	if err := db.First(&settings, 1).Error; err != nil {
-		t.Fatalf("read settings: %v", err)
-	}
-	if settings.Voice != "" {
-		t.Fatalf("legacy settings voice was not cleared: %q", settings.Voice)
-	}
-	var history HistoryRecord
-	if err := db.First(&history).Error; err != nil {
-		t.Fatalf("read history: %v", err)
-	}
-	if history.Voice != legacyCloneVoiceLabel {
-		t.Fatalf("legacy history voice = %q, want %q", history.Voice, legacyCloneVoiceLabel)
-	}
-}
-
 func TestSaveHistoryPrunesOldRecords(t *testing.T) {
 	s := newTestService(t)
 
@@ -251,8 +217,8 @@ func TestHistoryNeverReturnsInjectedDataURI(t *testing.T) {
 		t.Fatalf("history leaked data URI: %s", encoded)
 	}
 	for _, item := range append(items, searched...) {
-		if item.Voice != legacyCloneVoiceLabel {
-			t.Fatalf("sanitized voice = %q, want %q", item.Voice, legacyCloneVoiceLabel)
+		if item.Voice != "" {
+			t.Fatalf("invalid voice was not omitted: %q", item.Voice)
 		}
 	}
 }
